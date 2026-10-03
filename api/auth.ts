@@ -5,6 +5,24 @@ import { fail, requirePost } from './_lib/http.js'
 import { courierByTelegram } from './_lib/courier-staff.js'
 import { loadShopContext, shopCol, withShop } from './_lib/context.js'
 import { shopIdFrom } from './_lib/tenant.js'
+import { PlatformError } from './_lib/platform/errors.js'
+import {
+  pollLoginRequest, redeemLoginCode, startLoginRequest, telegramStaffLogin,
+} from './_lib/platform/tglogin.js'
+
+/**
+ * Xodimlar (admin panel) uchun parolsiz kirish — platform/tglogin.ts:
+ *   { mode: 'staff', initData, shopId? } — panel Telegram ichida
+ *   { mode: 'code', loginCode }          — botdagi bir martalik havola
+ *   { mode: 'request' }                  — kompyuterda «Telegram orqali kirish»
+ *   { mode: 'poll', nonce }              — o'sha so'rov tasdiqlandimi
+ */
+const STAFF_MODES: Record<string, (body: Record<string, unknown>) => Promise<unknown>> = {
+  staff: telegramStaffLogin,
+  code: redeemLoginCode,
+  request: () => startLoginRequest(),
+  poll: pollLoginRequest,
+}
 
 /**
  * POST /api/auth   { initData: string, shopId: string }
@@ -20,6 +38,17 @@ import { shopIdFrom } from './_lib/tenant.js'
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!requirePost(req, res)) return
+
+  const mode = typeof req.body?.mode === 'string' ? STAFF_MODES[req.body.mode] : undefined
+  if (mode) {
+    try {
+      return res.status(200).json(await mode((req.body ?? {}) as Record<string, unknown>))
+    } catch (error) {
+      if (error instanceof PlatformError) return fail(res, error.status, error.message, error.code)
+      console.error('[auth] xodim kirishi xatosi:', error)
+      return fail(res, 500, 'Kirib bo‘lmadi. Birozdan keyin qayta urinib ko‘ring.')
+    }
+  }
 
   const shopId = shopIdFrom(req.body, req.headers)
   const context = shopId ? await loadShopContext(shopId).catch(() => null) : null

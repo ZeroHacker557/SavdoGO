@@ -1,5 +1,5 @@
 import {
-  deleteMessage, editMessage, escapeHtml, replaceButtons, sendMessage, sendRows, setKeyboard, type AnyButton,
+  botConnected, deleteMessage, editMessage, escapeHtml, replaceButtons, sendMessage, sendRows, setKeyboard, type AnyButton,
 } from '../telegram.js'
 import { userLang, type Lang } from '../i18n.js'
 import { restoreStock } from '../stock.js'
@@ -673,6 +673,24 @@ ${orderSummary(orderId, order)}`
      * ikkinchisi esa botga umuman bog'liq emas.
      */
     const accept = [{ text: '✅ Qabul qilindi', callback_data: `adm:acc:${orderId}` }]
+
+    /*
+     * Do'kon boti ulanmagan — xabar SavdoGO boti orqali keladi (ega uni
+     * do'kon ochganda ishlatgan). «Qabul qilindi» do'kon botining
+     * webhook'iga bog'liq, shuning uchun bu yerda faqat panelga tugma:
+     * panel SavdoGO botida parolsiz ochiladi (platform/tglogin.ts).
+     */
+    if (!botConnected()) {
+      const { publicBase, sendText } = await import('../platform/tgbot.js')
+      const url = `${publicBase()}/admin?open=${encodeURIComponent(`orders/${orderId}`)}`
+      let sent = 0
+      for (const target of targets) {
+        if (await sendText(target, text, [[{ text: '🖥 Admin panelda ochish', web_app: { url } }]])) sent++
+        await new Promise((resolve) => setTimeout(resolve, 40))
+      }
+      if (sent) await tenant.collection('orders').doc(orderId).set({ notified: true }, { merge: true })
+      return
+    }
 
     const adminMessages: ChatMessage[] = []
     for (const target of targets) {

@@ -3,7 +3,8 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { AdminApiError, apiGet, apiPost } from './lib/api'
 import { getInitData, isInTelegram } from './lib/telegram'
 import { withRetry } from './lib/retry'
-import { logout, watchUser, type Staff } from './lib/auth'
+import { loginWithCode, loginWithTelegram, logout, watchUser, PasswordlessError, type Staff } from './lib/auth'
+import { resolveSiteTarget } from '../platform/config'
 import { useRoute } from './lib/router'
 import { useCashHandovers, useOrders, useSupportThreads } from './lib/live'
 import { Shell } from './components/Shell'
@@ -91,9 +92,62 @@ async function loadSession(): Promise<Staff> {
   return staff
 }
 
+/**
+ * Parolsiz kirish — sahifa ochilganda bir marta:
+ *   ?login=<kod>    — SavdoGO botidagi «💻 Kompyuterda ochish» havolasi
+ *   Telegram ichida — initData: SavdoGO boti (ega) yoki do'kon boti (xodim)
+ * Muvaffaqiyatda onAuthStateChanged foydalanuvchi bilan qayta keladi.
+ * Xatoda kirish oynasi ochiladi; matn bo'lsa — o'sha oynada ko'rinadi.
+ */
+let passwordlessTried = false
+
+async function tryPasswordless(): Promise<{ ok: boolean; notice?: string }> {
+  if (passwordlessTried) return { ok: false }
+  passwordlessTried = true
+
+  const params = new URLSearchParams(window.location.search)
+  const code = params.get('login')
+  if (code) {
+    // Kod manzil satrida qolmasin (tarix, skrinshot)
+    params.delete('login')
+    const query = params.toString()
+    window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`)
+    try {
+      await loginWithCode(code)
+      return { ok: true }
+    } catch (error) {
+      return { ok: false, notice: error instanceof Error ? error.message : 'Havola ishlamadi' }
+    }
+  }
+
+  if (isInTelegram()) {
+    const target = resolveSiteTarget(window.location)
+    try {
+      await loginWithTelegram(getInitData(), target.kind === 'shop' ? target.slug : null)
+      return { ok: true }
+    } catch (error) {
+      // Biriktirilmagan Telegram — oddiy kirish oynasi, ortiqcha xabarsiz
+      if (error instanceof PasswordlessError && error.code === 'not-linked') return { ok: false }
+      return { ok: false, notice: error instanceof Error ? error.message : undefined }
+    }
+  }
+  return { ok: false }
+}
+
+/** Botdagi tugma: `/admin?open=orders/<id>` — kirgandan keyin shu bo'lim ochiladi. */
+function openRequestedRoute() {
+  const params = new URLSearchParams(window.location.search)
+  const open = params.get('open')
+  if (!open) return
+  params.delete('open')
+  const query = params.toString()
+  window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`)
+  if (/^[a-z0-9/_-]+$/i.test(open)) window.location.hash = `#/${open}`
+}
+
 type State =
   | { phase: 'loading' }
-  | { phase: 'anonymous' }
+  | { phase: 'anonymous'; notice?: string }
   | { phase: 'denied'; reason: string }
   | { phase: 'error'; reason: string }
   | { phase: 'ready'; staff: Staff }
@@ -110,7 +164,9 @@ export function AdminApp() {
   useEffect(() => {
     return watchUser(async (user) => {
       if (!user) {
-        setState({ phase: 'anonymous' })
+        const passwordless = await tryPasswordless()
+        if (passwordless.ok) return
+        setState({ phase: 'anonymous', notice: passwordless.notice })
         return
       }
       setState({ phase: 'loading' })
@@ -118,6 +174,7 @@ export function AdminApp() {
         // Rolga mijoz tomonida ishonilmaydi — serverdan so'raladi
         const staff = await loadSession()
         setState({ phase: 'ready', staff })
+        openRequestedRoute()
         void linkTelegramOnce()
       } catch (error) {
         const reason = error instanceof Error ? error.message : 'Noma‘lum xato'
@@ -146,7 +203,7 @@ export function AdminApp() {
     )
   }
 
-  if (state.phase === 'anonymous') return <LoginPage />
+  if (state.phase === 'anonymous') return <LoginPage notice={state.notice} />
 
   /*
    * Aloqa uzilgan yoki server javob bermadi.
@@ -269,7 +326,7 @@ function AdminPanel({
       {route === 'staff' && (staff.role === 'owner' ? <StaffPage me={staff} /> : <NoAccess />)}
       {route === 'settings' && (staff.role === 'owner' ? <SettingsPage /> : <NoAccess />)}
       {route === 'design' && (staff.role === 'owner' ? <DesignPage /> : <NoAccess />)}
-      {route === 'billing' && (staff.role === 'owner' ? <BillingPage preselectAddon={param === 'addon'} /> : <NoAccess />)}
+      {route === 'billing' && (staff.role === 'owner' ? <BillingPage /> : <NoAccess />)}
       {route === 'newshop' && (staff.role === 'owner' ? <NewShopPage /> : <NoAccess />)}
 
       {/* Ega va adminlar */}

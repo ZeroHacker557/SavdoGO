@@ -8,6 +8,8 @@ import { paymentApprove, paymentReject, requireSuper, settingsSave, shopUpdate, 
 import {
   inviteCheck, ownerOverview, requestApprove, requestCancel, requestReject, requestSubmit, switchShop,
 } from './_lib/platform/owners.js'
+import { tgMe } from './_lib/platform/tglogin.js'
+import { platformToken, setupPlatformBot } from './_lib/platform/tgbot.js'
 
 type Body = Record<string, unknown>
 
@@ -17,6 +19,8 @@ type Body = Record<string, unknown>
  *   Ochiq (ro'yxatdan o'tish):
  *     slug.check        — subdomen bo'shmi
  *     shop.create       — yangi do'kon + ega hisobi + namuna katalog
+ *                         (`telegram: initData` — SavdoGO botidan, parolsiz)
+ *     tg.me             — forma Telegram ichida: ism, tasdiqlangan telefon
  *
  *   Do'kon egasi (Firebase ID token, staff/{uid}):
  *     billing.status    — holat, platforma kartasi, to'lovlar tarixi
@@ -29,7 +33,8 @@ type Body = Record<string, unknown>
  *   Platforma egasi (`super: true` claim):
  *     super.overview, super.payment.approve, super.payment.reject,
  *     super.shop.update, super.settings.save,
- *     super.request.approve, super.request.reject
+ *     super.request.approve, super.request.reject,
+ *     super.bot.setup   — SavdoGO boti webhook'i va tavsifi
  *
  * Bitta funksiya — Vercel Hobby rejasidagi funksiyalar limiti uchun.
  */
@@ -52,6 +57,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'shop.create':
         // Tasdiqlangan ariza bilan yaratilsa — egasining tokeni ham keladi
         return res.status(200).json(await shopCreate(body, clientIp(req), String(req.headers.authorization || '')))
+      case 'tg.me':
+        return res.status(200).json(await tgMe(body))
       case 'invite.check':
         return res.status(200).json(await inviteCheck(String(req.headers.authorization || ''), body))
 
@@ -97,6 +104,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json(await requestApprove(await requireSuper(req), body))
       case 'super.request.reject':
         return res.status(200).json(await requestReject(await requireSuper(req), body))
+      case 'super.bot.setup':
+        await requireSuper(req)
+        return res.status(200).json(await setupPlatformBot())
 
       default:
         return fail(res, 400, 'Noma’lum amal')
@@ -140,7 +150,7 @@ async function ping(res: VercelResponse) {
     serviceAccount: { set: Boolean(raw), valid, projectId, error },
     storageBucket: process.env.FIREBASE_STORAGE_BUCKET || (projectId ? `${projectId}.firebasestorage.app` : null),
     firebaseAdmin: adminLoads,
-    platformBot: { set: Boolean(process.env.PLATFORM_BOT_TOKEN), chatSet: Boolean(process.env.PLATFORM_CHAT_ID) },
+    platformBot: { set: Boolean(platformToken()), chatSet: Boolean(process.env.PLATFORM_CHAT_ID) },
     cronSecret: Boolean(process.env.CRON_SECRET),
   })
 }

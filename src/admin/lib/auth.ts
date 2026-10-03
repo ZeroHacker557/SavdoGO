@@ -5,6 +5,7 @@ import {
   indexedDBLocalPersistence,
   initializeAuth,
   onAuthStateChanged,
+  signInWithCustomToken,
   signInWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail,
@@ -79,6 +80,57 @@ export async function login(email: string, password: string) {
 
 export function logout() {
   return signOut(auth)
+}
+
+/* ─── Parolsiz kirish (api/auth.ts → platform/tglogin.ts) ──────── */
+
+export class PasswordlessError extends Error {
+  constructor(message: string, readonly code: string = '') {
+    super(message)
+  }
+}
+
+async function authApi<T>(body: Record<string, unknown>): Promise<T> {
+  let response: Response
+  try {
+    response = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  } catch {
+    throw new PasswordlessError('Tarmoqqa ulanib bo‘lmadi', 'network')
+  }
+  const json = (await response.json().catch(() => ({}))) as T & { error?: string; code?: string }
+  if (!response.ok) throw new PasswordlessError(json.error || `Kirib bo‘lmadi (${response.status})`, json.code || String(response.status))
+  return json
+}
+
+async function signInWithToken(token: string) {
+  await persistenceReady
+  await signInWithCustomToken(auth, token)
+}
+
+/** Panel Telegram ichida: SavdoGO boti (ega) yoki do'kon boti (xodim) imzosi bilan. */
+export async function loginWithTelegram(initData: string, shopId: string | null) {
+  const { token } = await authApi<{ token: string }>({ mode: 'staff', initData, shopId })
+  await signInWithToken(token)
+}
+
+/** Botdagi «💻 Kompyuterda ochish» havolasidagi bir martalik kod. */
+export async function loginWithCode(loginCode: string) {
+  const { token } = await authApi<{ token: string }>({ mode: 'code', loginCode })
+  await signInWithToken(token)
+}
+
+export type TelegramLoginRequest = { nonce: string; code: string; botUsername: string; link: string; ttl: number }
+
+/** Kompyuterdagi «Telegram orqali kirish»: botda tasdiqlanadigan so'rov. */
+export function startTelegramLogin(): Promise<TelegramLoginRequest> {
+  return authApi<TelegramLoginRequest>({ mode: 'request' })
+}
+
+/** So'rov tasdiqlanganmi — tasdiqlansa o'zi kiradi. */
+export async function pollTelegramLogin(nonce: string): Promise<'pending' | 'approved' | 'expired'> {
+  const result = await authApi<{ status: 'pending' | 'approved' | 'expired'; token?: string }>({ mode: 'poll', nonce })
+  if (result.status === 'approved' && result.token) await signInWithToken(result.token)
+  return result.status
 }
 
 export function resetPassword(email: string) {

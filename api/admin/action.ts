@@ -15,6 +15,7 @@ import { courierDeliver, courierTake } from '../_lib/actions/courier.js'
 import { supportAdminRead, supportClose, supportReply } from '../_lib/actions/support.js'
 import { cashConfirm, cashReject } from '../_lib/actions/cash.js'
 import { demoCleanup } from '../_lib/actions/demo.js'
+import { botConnect, botDisconnect } from '../_lib/actions/bot.js'
 import { loadShopContext, withShop } from '../_lib/context.js'
 import { adminDb } from '../_lib/firebase-admin.js'
 import { PaymentRequiredError, isShopActive, readShopState } from '../_lib/tenant.js'
@@ -79,6 +80,10 @@ const HANDLERS: Record<string, Handler> = {
   'settings.save': settingsSave,
   'settings.testGroup': settingsTestGroup,
 
+  // O'z Telegram botini ulash (bepul) — faqat ega
+  'bot.connect': botConnect,
+  'bot.disconnect': botDisconnect,
+
   // Namuna (demo) mahsulot va kategoriyalarni bir bosishda o'chirish
   'demo.cleanup': (staff, body) => (requireCatalogAccess(staff), demoCleanup(body)),
 }
@@ -88,11 +93,11 @@ const HANDLERS: Record<string, Handler> = {
  * qiladi — ro'yxat oq ro'yxat (whitelist): yangi amal qo'shilsa, u
  * sukut bo'yicha qulflangan bo'ladi.
  */
-const FREE_ACTIONS = new Set(['staff.linkTelegram'])
+const FREE_ACTIONS = new Set(['staff.linkTelegram', 'bot.connect', 'bot.disconnect'])
 
 /**
- * «Telegram va kuryerlar» to'plami ($50) bilan ishlaydigan amallar.
- * Do'kon boti ulanmagan bo'lsa (shopSecrets'da token yo'q) rad etiladi —
+ * Do'konning o'z Telegram boti bilan ishlaydigan amallar (bot ulash bepul).
+ * Bot ulanmagan bo'lsa (shopSecrets'da token yo'q) rad etiladi —
  * panel bu bo'limlarni yashiradi, bu esa to'g'ridan-to'g'ri so'rovdan himoya.
  */
 const ADDON_ACTIONS = new Set([
@@ -167,7 +172,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return fail(
         res,
         403,
-        'Bu imkoniyat «Telegram va kuryerlar» to‘plamida ishlaydi. Admin paneldagi «Kuryerlar va Telegram» bo‘limidan ulang.',
+        'Bu imkoniyat do‘koningizning Telegram boti bilan ishlaydi. «Kuryerlar va Telegram» bo‘limida botingizni bepul ulang.',
         'addon-required',
       )
     }

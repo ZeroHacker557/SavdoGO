@@ -174,7 +174,7 @@ export function Shell({ staff, route, onNavigate, newOrders = 0, supportUnread =
                     <span className="adm-nav__badge">{cashPending}</span>
                   )}
                   {entry.addon === 'teaser' && (
-                    <span className="adm-nav__addon">{addonState(shop) === 'pending' ? '⏳' : ADDON_PRICE}</span>
+                    <span className="adm-nav__addon">{ADDON_PRICE}</span>
                   )}
                 </button>
               </div>

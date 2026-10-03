@@ -3,7 +3,7 @@ import {
   Send, Smartphone, Truck, UsersRound,
 } from 'lucide-react'
 import type { CSSProperties } from 'react'
-import { PLATFORM, TELEGRAM_ADDON } from '../../platform/config'
+import { PLATFORM } from '../../platform/config'
 import { ADDON_NAME } from '../../platform/addon'
 import { spotlight } from '../hooks'
 
@@ -129,7 +129,7 @@ export function Features() {
             <span className="lp-tile__icon"><Megaphone size={24} /></span>
             <h3>Ommaviy xabarlar</h3>
             <p>Yangi aksiya haqida barcha Telegram mijozlaringizga bir bosishda xabar — rasm va tugma bilan.</p>
-            <span className="lp-tile__tag">Telegram to‘plamida</span>
+            <span className="lp-tile__tag">Telegram botingiz bilan</span>
           </article>
 
           <article className="lp-tile lp-tile--w2 lp-tile--dark" data-reveal style={{ '--d': '0.16s' } as CSSProperties} onMouseMove={spotlight}>
@@ -139,7 +139,7 @@ export function Features() {
               Kuryerlar ilovasi, jonli xarita va buyurtmalar Telegram’ga. Mijoz kuryerni kuzatadi — «qachon
               keladi?» qo‘ng‘iroqlari kamayadi.
             </p>
-            <span className="lp-tile__tag">+${TELEGRAM_ADDON.priceUsd} · bir marta</span>
+            <span className="lp-tile__tag">Bepul · o‘z botingiz</span>
           </article>
         </div>
 
@@ -155,7 +155,7 @@ export function Features() {
             <span className="lp-tile__icon"><UsersRound size={24} /></span>
             <p>
               <b>Xodimlar va rollar:</b> ega va adminlar — har biri faqat o‘ziga kerakli bo‘limni ko‘radi.
-              Kuryerlar — Telegram to‘plami bilan.
+              Kuryerlar — Telegram botingiz bilan.
             </p>
           </article>
         </div>

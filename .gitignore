@@ -29,3 +29,6 @@ dist/
 # Python
 __pycache__/
 *.pyc
+
+# Promo videolar va ovozlar — node promo/render.mjs qayta yaratadi (saytga kerak emas)
+promo/out/

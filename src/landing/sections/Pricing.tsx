@@ -1,10 +1,10 @@
 import { ArrowRight, Check, Gift, Send } from 'lucide-react'
 import { useRef, type CSSProperties } from 'react'
 import {
-  PLANS, PLAN_ORDER, TELEGRAM_ADDON, TRIAL_DAYS, YEAR_SAVING, YEAR_SAVING_PERCENT, formatSum, type PlanId,
+  PLANS, PLAN_ORDER, TRIAL_DAYS, YEAR_SAVING, YEAR_SAVING_PERCENT, formatSum, type PlanId,
 } from '../../platform/config'
 import { emptyDraft, loadDraft, saveDraft } from '../../platform/shop'
-import { ADDON_BENEFITS, ADDON_NAME, ADDON_PITCH } from '../../platform/addon'
+import { ADDON_BENEFITS, ADDON_NAME, ADDON_PITCH, ADDON_PRICE } from '../../platform/addon'
 import { goTo } from '../router'
 import { useCountUp, useInView } from '../hooks'
 
@@ -129,11 +129,11 @@ export function Pricing() {
           </ul>
         </div>
 
-        {/* Qo'shimcha to'plam — kuryerlar va Telegram faqat shu bilan */}
+        {/* O'z Telegram boti — kuryerlar va Telegram shu bilan, ulash bepul */}
         <div className="lp-addon" data-reveal>
           <span className="lp-addon__icon"><Send size={26} /></span>
           <div>
-            <span className="lp-addon__kicker">Qo‘shimcha to‘plam</span>
+            <span className="lp-addon__kicker">Har bir tarifda</span>
             <h3>{ADDON_NAME}</h3>
             <p>{ADDON_PITCH}</p>
             <ul className="lp-addon__list">
@@ -143,8 +143,8 @@ export function Pricing() {
             </ul>
           </div>
           <div className="lp-addon__price">
-            <b>${TELEGRAM_ADDON.priceUsd}</b>
-            <span>bir martalik</span>
+            <b>{ADDON_PRICE}</b>
+            <span>o‘z botingiz bilan</span>
           </div>
         </div>
       </div>

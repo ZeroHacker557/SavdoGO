@@ -1,6 +1,6 @@
 import { adminDb } from '../firebase-admin.js'
 import type { Staff } from '../admin-auth.js'
-import { PLANS, TELEGRAM_ADDON, type PlanId } from '../../../src/platform/plans.js'
+import { PLANS, type PlanId } from '../../../src/platform/plans.js'
 import { readShopState } from '../tenant.js'
 import { uploadDataUrl } from './files.js'
 import { esc, notifyPlatform } from './notify.js'
@@ -89,7 +89,6 @@ export async function billingSubmit(staff: Staff, body: Record<string, unknown>)
 
   const plan = String(body.plan) as PlanId
   if (!(plan in PLANS)) throw new PlatformError('Tarif tanlanmagan')
-  const telegramAddon = body.telegramAddon === true
   const receipt = typeof body.receipt === 'string' ? body.receipt : ''
   if (!receipt.startsWith('data:image/')) throw new PlatformError('Chek rasmini yuklang')
   const note = typeof body.note === 'string' ? body.note.trim().slice(0, 300) : ''
@@ -118,8 +117,6 @@ export async function billingSubmit(staff: Staff, body: Record<string, unknown>)
     shopName: state.name,
     plan,
     amount,
-    telegramAddon,
-    addonUsd: telegramAddon ? TELEGRAM_ADDON.priceUsd : 0,
     receipt: url,
     note,
     status: 'pending',
@@ -134,7 +131,7 @@ export async function billingSubmit(staff: Staff, body: Record<string, unknown>)
     [
       '💳 <b>Yangi to‘lov cheki</b>',
       `${esc(state.name)} (${staff.shopId})`,
-      `Tarif: ${PLANS[plan].name} — ${amount.toLocaleString('ru-RU')} so‘m${telegramAddon ? ` + Telegram $${TELEGRAM_ADDON.priceUsd}` : ''}`,
+      `Tarif: ${PLANS[plan].name} — ${amount.toLocaleString('ru-RU')} so‘m`,
       note ? `Izoh: ${esc(note)}` : '',
       `Chek: ${url}`,
     ].filter(Boolean).join('\n'),

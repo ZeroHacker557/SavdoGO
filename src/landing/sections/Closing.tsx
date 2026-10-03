@@ -1,6 +1,6 @@
 import { ArrowRight, Mail, Phone, Plus, Send } from 'lucide-react'
 import type { CSSProperties } from 'react'
-import { PLANS, PLATFORM, TELEGRAM_ADDON, TRIAL_DAYS, formatSum } from '../../platform/config'
+import { PLANS, PLATFORM, TRIAL_DAYS, formatSum, platformBotLink } from '../../platform/config'
 import { Logo } from '../components/Logo'
 import { goTo } from '../router'
 
@@ -18,8 +18,8 @@ const FAQ: { q: string; a: string }[] = [
     a: `Ha. Do‘kon avval nomi.${PLATFORM.rootDomain} manzilida ochiladi. To‘lovdan keyin o‘z domeningizni (masalan, kafenur.uz) ulab beramiz — domenni o‘zingiz sotib olasiz yoki biz yordam beramiz.`,
   },
   {
-    q: '«Telegram va kuryerlar» to‘plami nima beradi?',
-    a: `Yetkazib berishni o‘zi boshqaradigan tizim. Kuryerlar buyurtmani telefonida oladi («Oldim», yo‘l ko‘rsatish, «Yetkazildi»), siz ularni jonli xaritada ko‘rasiz, mijoz esa kuryerni kuzatib turadi. Yangi buyurtmalar sizga Telegram’da keladi, do‘kon bot ichida ilovadek ochiladi, kuryerlar kassasi va ommaviy xabar ham shu to‘plamda. Bir marta $${TELEGRAM_ADDON.priceUsd} — keyin oylik to‘lov yo‘q.`,
+    q: 'Telegram bot va kuryerlar nima beradi?',
+    a: `Yetkazib berishni o‘zi boshqaradigan tizim. Kuryerlar buyurtmani telefonida oladi («Oldim», yo‘l ko‘rsatish, «Yetkazildi»), siz ularni jonli xaritada ko‘rasiz, mijoz esa kuryerni kuzatib turadi. Yangi buyurtmalar sizga Telegram’da keladi, do‘kon bot ichida ilovadek ochiladi, kuryerlar kassasi va ommaviy xabar ham shu bot bilan ishlaydi. Botni BotFather’da o‘zingiz yaratib ulaysiz — bepul, 2 daqiqada.`,
   },
   {
     q: 'Mahsulotlarni qanday qo‘shaman?',
@@ -69,6 +69,11 @@ export function Final() {
           <button className="lp-btn lp-btn--lime lp-btn--shine" onClick={() => goTo('start')}>
             Do‘konimni yaratish <ArrowRight size={19} />
           </button>
+          {platformBotLink() && (
+            <p style={{ marginTop: 14 }}>
+              yoki <a href={platformBotLink()!} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline', fontWeight: 700 }}>Telegram botimizda oching</a> — parolsiz, telefoningizdan
+            </p>
+          )}
         </div>
       </div>
     </section>

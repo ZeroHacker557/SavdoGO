@@ -8,9 +8,11 @@ import { escapeHtml, sendMessage, sendRows } from './_lib/telegram.js'
 import { saveCourierLocation } from './_lib/actions/location.js'
 import { canDeliver } from './_lib/courier-staff.js'
 import type { Staff, StaffRole } from './_lib/admin-auth.js'
+import { handlePlatformUpdate, platformToken, platformWebhookSecret, type PlatformUpdate } from './_lib/platform/tgbot.js'
 
 /**
  * POST /api/telegram?shop=<id> — do'kon botining webhook'i.
+ * POST /api/telegram?platform=1 — SavdoGO boti (platform/tgbot.ts).
  *
  * Har do'konning o'z boti bor (qo'shimcha xizmat). Telegram so'rovni
  * `X-Telegram-Bot-Api-Secret-Token` sarlavhasi bilan yuboradi — u bot
@@ -217,18 +219,35 @@ async function onMessage(token: string, shopName: string, message: TgMessage) {
   }
 }
 
+/** Sarlavhadagi sir kutilgani bilan bir xilmi (vaqt bo'yicha teng). */
+function sameSecret(expected: string, given: string): boolean {
+  const a = Buffer.from(expected)
+  const b = Buffer.from(given)
+  return Boolean(expected) && a.length === b.length && timingSafeEqual(a, b)
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(200).json({ ok: true })
+
+  if (req.query.platform) {
+    const token = platformToken()
+    const given = String(req.headers['x-telegram-bot-api-secret-token'] || '')
+    if (!token || !sameSecret(platformWebhookSecret(token), given)) return res.status(200).json({ ok: false })
+    try {
+      await handlePlatformUpdate((req.body ?? {}) as PlatformUpdate)
+    } catch (error) {
+      console.error('[telegram] SavdoGO boti xatosi:', error)
+    }
+    return res.status(200).json({ ok: true })
+  }
+
   const shopId = String(req.query.shop || '').trim().toLowerCase()
 
   try {
     const db = await adminDb()
     const secrets = shopId ? (await db.collection('shopSecrets').doc(shopId).get()).data() : null
-    const expected = String(secrets?.webhookSecret || '')
     const given = String(req.headers['x-telegram-bot-api-secret-token'] || '')
-    const a = Buffer.from(expected)
-    const b = Buffer.from(given)
-    if (!expected || a.length !== b.length || !timingSafeEqual(a, b)) return res.status(200).json({ ok: false })
+    if (!sameSecret(String(secrets?.webhookSecret || ''), given)) return res.status(200).json({ ok: false })
 
     const context = await loadShopContext(shopId)
     if (!context?.botToken) return res.status(200).json({ ok: false })

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
-import type { Firestore } from 'firebase-admin/firestore'
+import type { Firestore, WriteBatch } from 'firebase-admin/firestore'
+import type { Auth } from 'firebase-admin/auth'
 import { adminAuth, adminDb } from '../firebase-admin.js'
 import { PLANS, TRIAL_DAYS } from '../../../src/platform/plans.js'
 import { businessType } from '../../../src/platform/business-types.js'
@@ -12,6 +13,8 @@ import {
   OWNER_EXISTS_TEXT, bearerUid, claimInvite, finishInvite, phoneKey, releaseInvite, setActiveClaims, shopsOfIndex,
 } from './owners.js'
 import { createIfAbsent, runTx } from '../firestore-tx.js'
+import { verifyInitData } from '../telegram-auth.js'
+import { announceNewShop, platformToken } from './tgbot.js'
 
 /** Xato klassi alohida faylda (aylana importsiz); eski importlar uchun shu yerdan ham. */
 export { PlatformError }
@@ -51,7 +54,15 @@ async function rateLimit(db: Firestore, ip: string) {
 }
 
 type Draft = ReturnType<typeof readDraft>
-type OwnerInfo = { uid: string; name: string; email: string; phone: string }
+type OwnerInfo = {
+  uid: string
+  name: string
+  /** Telegram orqali ochilgan egada bo'sh — u parolsiz kiradi (tglogin.ts). */
+  email: string
+  phone: string
+  telegramId?: number
+  telegramUsername?: string | null
+}
 
 /** Logo — Storage'ga; yuklab bo'lmasa kichik logo hujjatning o'zida qoladi. */
 async function storeLogo(draft: Draft): Promise<string | null> {
@@ -107,6 +118,8 @@ function shopDocs(db: Firestore, draft: Draft, owner: OwnerInfo, logo: string | 
     role: 'owner',
     active: true,
     createdAt: now,
+    // Telegram'dan ochilgan ega — buyurtma xabarlari darhol unga keladi
+    ...(owner.telegramId ? { telegramId: owner.telegramId, telegramUsername: owner.telegramUsername ?? null, telegramLinkedAt: now } : {}),
   })
   // Shablon kodi yetkazish va karta sozlamalarini shu hujjatlardan o'qiydi
   batch.set(shopRef.collection('settings').doc('delivery'), {
@@ -159,7 +172,11 @@ export async function shopCreate(body: Record<string, unknown>, ip: string, auth
 
   await rateLimit(db, ip)
 
-  const result = invite ? await createFromInvite(db, draft, invite, authorization) : await createWithAccount(db, draft, body)
+  const result = invite
+    ? await createFromInvite(db, draft, invite, authorization)
+    : body.telegram
+      ? await createWithTelegram(db, draft, body)
+      : await createWithAccount(db, draft, body)
 
   const plan = PLANS[draft.plan]
   void notifyPlatform(
@@ -168,18 +185,29 @@ export async function shopCreate(body: Record<string, unknown>, ip: string, auth
       `${esc(draft.name)} — ${esc(businessType(draft.type).name)}`,
       `🌐 ${draft.slug}`,
       `👤 ${esc(result.owner.name)} · ${esc(result.owner.phone)}`,
-      `✉️ ${esc(result.owner.email)}`,
+      result.owner.email ? `✉️ ${esc(result.owner.email)}` : '📱 Telegram orqali (SavdoGO boti)',
       `🎁 ${TRIAL_DAYS} kunlik bepul sinov boshlandi`,
       `💳 Tanlangan tarif: ${plan.name}${draft.telegramAddon ? ' + Telegram' : ''}`,
     ].join('\n'),
   )
 
+  // SavdoGO botidan ochilgan bo'lsa — havola va menyu chatga ham keladi
+  if (result.owner.telegramId) await announceNewShop(result.owner.telegramId, result.owner.uid, draft.name)
+
   return { shopId: draft.slug }
 }
 
-/** Birinchi do'kon: yangi ega hisobi bilan. */
-async function createWithAccount(db: Firestore, draft: Draft, body: Record<string, unknown>) {
-  const owner = readOwner(body.owner)
+/**
+ * Birinchi do'kon: yangi ega hisobi bilan. Hisob qanday ochilishi
+ * (`makeUser`) — email/parol yoki Telegram; qolgan qadamlar bir xil.
+ */
+async function createOwnerShop(
+  db: Firestore,
+  draft: Draft,
+  owner: Omit<OwnerInfo, 'uid'>,
+  makeUser: (auth: Auth) => Promise<string>,
+  extra?: (batch: WriteBatch, uid: string, now: string) => void,
+) {
   const auth = await adminAuth()
   const now = new Date().toISOString()
 
@@ -200,34 +228,20 @@ async function createWithAccount(db: Firestore, draft: Draft, body: Record<strin
   // 3. Ega hisobi
   let uid: string
   try {
-    const user = await auth.createUser({
-      email: owner.email,
-      password: owner.password,
-      displayName: owner.name,
-    })
-    uid = user.uid
+    uid = await makeUser(auth)
   } catch (error) {
     await Promise.allSettled([db.collection('shops').doc(draft.slug).delete(), phoneRef.delete()])
-    const code = (error as { code?: string })?.code || ''
-    if (code === 'auth/email-already-exists') {
-      // Do'kon egasimi yoki boshqa do'kondagi xodimmi — javob shunga qarab
-      const existing = await auth.getUserByEmail(owner.email).catch(() => null)
-      if (existing?.customClaims?.role === 'owner') throw new PlatformError(OWNER_EXISTS_TEXT, 409, 'owner-exists')
-      throw new PlatformError('Bu email boshqa do‘konda xodim sifatida ishlatilgan — boshqa email kiriting.', 409, 'email-taken')
-    }
-    if (code === 'auth/invalid-password') throw new PlatformError('Parol juda oddiy — kamida 8 ta belgi', 400)
-    if (code === 'auth/invalid-email') throw new PlatformError('Email manzili noto‘g‘ri', 400)
-    console.error('[platform] hisob ochilmadi:', error)
-    throw new PlatformError('Hisob ochib bo‘lmadi. Birozdan keyin qayta urinib ko‘ring.', 500)
+    throw error
   }
 
-  const info: OwnerInfo = { uid, name: owner.name, email: owner.email, phone: owner.phone }
+  const info: OwnerInfo = { uid, ...owner }
   try {
     const logo = await storeLogo(draft)
     const batch = shopDocs(db, draft, info, logo, now)
     // Xodim indeksi — kirishda qaysi do'konligini topish uchun
     batch.set(db.collection('staffIndex').doc(uid), { shopId: draft.slug, role: 'owner', shops: [draft.slug], createdAt: now })
     batch.set(phoneRef, { uid, shopId: draft.slug, createdAt: now })
+    extra?.(batch, uid, now)
     await batch.commit()
 
     // Rol — Firestore Rules va admin panel shu belgiga qaraydi
@@ -244,6 +258,61 @@ async function createWithAccount(db: Firestore, draft: Draft, body: Record<strin
     throw new PlatformError('Do‘konni yaratib bo‘lmadi. Birozdan keyin qayta urinib ko‘ring.', 500)
   }
   return { owner: info }
+}
+
+/** Saytdagi forma: email va parol bilan. */
+async function createWithAccount(db: Firestore, draft: Draft, body: Record<string, unknown>) {
+  const owner = readOwner(body.owner)
+  return createOwnerShop(db, draft, { name: owner.name, email: owner.email, phone: owner.phone }, async (auth) => {
+    try {
+      const user = await auth.createUser({ email: owner.email, password: owner.password, displayName: owner.name })
+      return user.uid
+    } catch (error) {
+      const code = (error as { code?: string })?.code || ''
+      if (code === 'auth/email-already-exists') {
+        // Do'kon egasimi yoki boshqa do'kondagi xodimmi — javob shunga qarab
+        const existing = await auth.getUserByEmail(owner.email).catch(() => null)
+        if (existing?.customClaims?.role === 'owner') throw new PlatformError(OWNER_EXISTS_TEXT, 409, 'owner-exists')
+        throw new PlatformError('Bu email boshqa do‘konda xodim sifatida ishlatilgan — boshqa email kiriting.', 409, 'email-taken')
+      }
+      if (code === 'auth/invalid-password') throw new PlatformError('Parol juda oddiy — kamida 8 ta belgi', 400)
+      if (code === 'auth/invalid-email') throw new PlatformError('Email manzili noto‘g‘ri', 400)
+      console.error('[platform] hisob ochilmadi:', error)
+      throw new PlatformError('Hisob ochib bo‘lmadi. Birozdan keyin qayta urinib ko‘ring.', 500)
+    }
+  })
+}
+
+/**
+ * SavdoGO botidagi forma (mini app): email/parol yo'q. Kim ekanligi —
+ * SavdoGO boti imzolagan initData, telefon — botga yuborilgan kontakt
+ * (Telegram tasdiqlagan). Ega keyin Telegram yoki bir martalik havola
+ * bilan kiradi (tglogin.ts).
+ */
+async function createWithTelegram(db: Firestore, draft: Draft, body: Record<string, unknown>) {
+  let tgUser
+  try {
+    tgUser = verifyInitData(String(body.telegram || ''), platformToken())
+  } catch {
+    throw new PlatformError('Telegram imzosi tasdiqlanmadi — formani SavdoGO botidan qayta oching', 401, 'tg-invalid')
+  }
+  const tgRef = db.collection('tgUsers').doc(String(tgUser.id))
+  const tg = (await tgRef.get()).data() ?? {}
+  if (tg.uid) throw new PlatformError(OWNER_EXISTS_TEXT, 409, 'owner-exists')
+  const phone = phoneKey(String(tg.phone || ''))
+  if (!phone) throw new PlatformError('Avval SavdoGO botida raqamingizni yuboring', 400, 'phone-required')
+
+  const raw = (body.owner && typeof body.owner === 'object' ? body.owner : {}) as Record<string, unknown>
+  const typed = typeof raw.name === 'string' ? raw.name.trim().slice(0, 80) : ''
+  const name = typed.length >= 2 ? typed : [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ').slice(0, 80) || 'Do‘kon egasi'
+
+  return createOwnerShop(
+    db,
+    draft,
+    { name, email: '', phone, telegramId: tgUser.id, telegramUsername: tgUser.username ?? null },
+    async (auth) => (await auth.createUser({ displayName: name })).uid,
+    (batch, uid, now) => batch.set(tgRef, { uid, shopId: draft.slug, updatedAt: now }, { merge: true }),
+  )
 }
 
 /** Ikkinchi (va keyingi) do'kon: tasdiqlangan ariza, egasining mavjud hisobi bilan. */

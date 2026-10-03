@@ -1,6 +1,6 @@
 import {
   BadgeCheck, Ban, Check, CheckCircle2, Clock, Copy, CreditCard, ExternalLink, Eye, FilePlus2, Gift, Globe, LayoutDashboard,
-  Loader2, LogOut, Moon, RefreshCw, Search, Settings2, ShieldAlert, ShoppingBag, Store, Sun, TrendingUp, Wallet, X, XCircle,
+  Loader2, LogOut, Moon, RefreshCw, Search, Send, Settings2, ShieldAlert, ShoppingBag, Store, Sun, TrendingUp, Wallet, X, XCircle,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import type { User } from 'firebase/auth'
@@ -432,7 +432,7 @@ function Payments({ payments, shops, run }: { payments: PaymentRow[]; shops: Sho
                   </div>
                   <p className="text-xl font-extrabold">{formatSum(payment.amount)}</p>
                   <p className="text-sm" style={{ color: 'var(--muted)' }}>
-                    {PLANS[payment.plan]?.name} tarif{payment.telegramAddon ? ' + Telegram ($50)' : ''} · {date(payment.createdAt, true)}
+                    {PLANS[payment.plan]?.name} tarif{payment.telegramAddon ? ' + Telegram' : ''} · {date(payment.createdAt, true)}
                   </p>
                   {shop && <p className="text-xs" style={{ color: 'var(--muted)' }}>{shop.ownerName} · {shop.ownerPhone}</p>}
                   {payment.note && <p className="rounded-lg px-2.5 py-1.5 text-xs" style={{ background: 'var(--surface-2)' }}>{payment.note}</p>}
@@ -751,10 +751,7 @@ function Shops({ shops, run }: { shops: ShopRow[]; run: RunFn }) {
                   <td>{PLANS[shop.plan]?.name ?? '—'}</td>
                   <td>{shop.paidUntil ? date(shop.paidUntil) : '—'}<br /><span className="text-xs" style={{ color: 'var(--muted)' }}>ochilgan {date(shop.createdAt)}</span></td>
                   <td className="text-xs">
-                    {shop.telegramAddon && (shop.botUsername
-                      ? <span className="sp-pill" style={{ background: 'rgba(14,165,233,.12)', color: '#0ea5e9' }}>Telegram @{shop.botUsername}</span>
-                      // To'plam to'langan, bot hali ulanmagan — sizdan harakat kutilmoqda
-                      : <span className="sp-pill" style={{ background: 'var(--warning-soft)', color: 'var(--warning)' }}>Telegram · bot ulang!</span>)}{' '}
+                    {shop.botUsername && <span className="sp-pill" style={{ background: 'rgba(14,165,233,.12)', color: '#0ea5e9' }}>Telegram @{shop.botUsername}</span>}{' '}
                     {shop.customDomain && <span className="sp-pill" style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}><Globe size={11} /> {shop.customDomain}</span>}
                   </td>
                   <td>
@@ -781,7 +778,6 @@ function ShopEditor({ shop, run, onClose }: { shop: ShopRow; run: RunFn; onClose
   const [domain, setDomain] = useState(shop.customDomain ?? '')
   const [bot, setBot] = useState(shop.botUsername ?? '')
   const [botToken, setBotToken] = useState('')
-  const [addon, setAddon] = useState(shop.telegramAddon)
   const [blocking, setBlocking] = useState(false)
 
   const act = async (body: Record<string, unknown>, ok: string) => {
@@ -818,10 +814,10 @@ function ShopEditor({ shop, run, onClose }: { shop: ShopRow; run: RunFn; onClose
         </section>
 
         <section className="grid gap-3 sm:grid-cols-2">
-          <h3 className="sp-h3 sm:col-span-2">Telegram mini app</h3>
-          <label className="flex items-center gap-2 text-sm font-bold sm:col-span-2">
-            <input type="checkbox" checked={addon} onChange={(e) => setAddon(e.target.checked)} /> Xizmat ulangan ($50 to‘langan)
-          </label>
+          <h3 className="sp-h3 sm:col-span-2">Telegram bot</h3>
+          <p className="text-xs sm:col-span-2" style={{ color: 'var(--muted)' }}>
+            Egasi botini o‘zi ulaydi (admin panel yoki SavdoGO boti) — bu yerda faqat yordam kerak bo‘lsa.
+          </p>
           <div>
             <label className="adm-label">Bot username</label>
             <input className="adm-input" value={bot} onChange={(e) => setBot(e.target.value.replace(/^@/, ''))} placeholder="kafenur_bot" />
@@ -836,7 +832,7 @@ function ShopEditor({ shop, run, onClose }: { shop: ShopRow; run: RunFn; onClose
           <button
             className="adm-btn adm-btn--primary sm:col-span-2"
             disabled={busy}
-            onClick={() => act({ telegramAddon: addon, botUsername: bot, ...(botToken ? { botToken } : {}) }, 'Telegram sozlandi')}
+            onClick={() => act({ botUsername: bot, ...(botToken ? { botToken } : {}) }, 'Telegram sozlandi')}
           >
             Saqlash
           </button>
@@ -896,6 +892,12 @@ function PlatformSettings({ card, run }: { card: Overview['card']; run: RunFn })
     setBusy(false)
   }
 
+  const setupBot = async () => {
+    setBusy(true)
+    await run('super.bot.setup', {}, 'SavdoGO boti sozlandi — Telegram’da /start yozib tekshiring')
+    setBusy(false)
+  }
+
   return (
     <div className="grid gap-5 lg:grid-cols-2">
       <section className="adm-card grid gap-3 p-4 sm:p-5">
@@ -914,6 +916,17 @@ function PlatformSettings({ card, run }: { card: Overview['card']; run: RunFn })
           <textarea className="adm-input" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Masalan: Click yoki Payme orqali ham mumkin" />
         </div>
         <button className="adm-btn adm-btn--primary" disabled={busy} onClick={save}>{busy && <Loader2 size={16} className="animate-spin" />} Saqlash</button>
+      </section>
+
+      <section className="adm-card grid content-start gap-3 p-4 sm:p-5">
+        <h2 className="flex items-center gap-2 text-base font-extrabold"><Send size={18} /> SavdoGO boti</h2>
+        <p className="text-sm" style={{ color: 'var(--muted)' }}>
+          Hamma uchun bitta bot: Telegram’da do‘kon ochish, parolsiz kirish, o‘z botini ulash va buyurtma xabarlari.
+          Vercel’da <code>PLATFORM_BOT_TOKEN</code> qo‘yib Redeploy qilgach — bir marta bosing (token almashsa ham).
+        </p>
+        <button className="adm-btn adm-btn--primary justify-self-start" disabled={busy} onClick={setupBot}>
+          {busy && <Loader2 size={16} className="animate-spin" />} Botni sozlash
+        </button>
       </section>
 
       <section className="adm-card grid content-start gap-2 p-4 sm:p-5">

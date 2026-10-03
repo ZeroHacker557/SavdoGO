@@ -21,8 +21,8 @@ Shu email va parol bilan `/super` ga kirasiz. Parolni faqat o'zingiz biling.
    | --- | --- |
    | `FIREBASE_SERVICE_ACCOUNT` | service account JSON — butunligicha, bitta qatorda |
    | `CRON_SECRET` | uzun tasodifiy satr |
-   | `PLATFORM_BOT_TOKEN` | (ixtiyoriy) sizga xabar yuboradigan bot |
-   | `PLATFORM_CHAT_ID` | (ixtiyoriy) sizning Telegram chat ID ingiz |
+   | `PLATFORM_BOT_TOKEN` | SavdoGO boti tokeni (Telegram'da do'kon ochish va boshqarish) |
+   | `PLATFORM_CHAT_ID` | (ixtiyoriy) sizning Telegram chat ID ingiz — botga `/id` yozing |
 
    `.env` faylidagi `FIREBASE_SERVICE_ACCOUNT` qatorini to'g'ridan-to'g'ri
    nusxalash mumkin. `PUBLIC_BASE_URL` va `SHOP_BASE_URL` ni Vercel'ga
@@ -71,26 +71,27 @@ Firebase Console → **Authentication → Settings → Authorized domains** ga
 
 ## 5. Qo'shimcha xizmatlar
 
-### «Telegram va kuryerlar» to'plami ($50)
+### SavdoGO boti
+
+1. @BotFather → `/newbot` → tokenni Vercel'ga `PLATFORM_BOT_TOKEN` qilib qo'shing → Redeploy.
+2. `/super` → **Sozlamalar** → **Botni sozlash**: webhook
+   (`/api/telegram?platform=1`), buyruqlar va tavsif o'rnatiladi.
+3. Botga `/start` yozib tekshiring. `/id` — sizning chat ID (`PLATFORM_CHAT_ID`).
+4. Bot username'ini [`src/platform/plans.ts`](src/platform/plans.ts) → `PLATFORM.botUsername`
+   ga yozing — landingda «Telegram orqali» tugmasi paydo bo'ladi.
+
+### Do'konning o'z boti — «Telegram va kuryerlar» (bepul)
 
 Kuryer bilan bog'liq **hamma narsa** — kuryer roli, kuryerga biriktirish,
-kuryerlar xaritasi, kassa, kuryer chati — hamda Telegram xabarlari va
-ommaviy xabar faqat shu to'plam bilan ochiladi. Ungacha admin panelda bu
-bo'limlar o'rnida «Kuryerlar va bot · $50» sahifasi turadi va to'plamni
-tushuntiradi. Server ham bu amallarni botsiz do'kon uchun rad etadi.
+kuryerlar xaritasi, kassa, kuryer chati — hamda do'kon botidagi xabarlar va
+ommaviy xabar do'konning o'z boti ulangach ochiladi. Botni ega **o'zi**
+ulaydi, to'lovsiz: admin panel → «Kuryerlar va Telegram» sahifasiga
+BotFather tokenini qo'yadi yoki tokenni SavdoGO botiga yuboradi. Server
+tokenni tekshiradi, webhook (`/api/telegram?shop=<id>`) va menyu tugmasini
+o'rnatadi; bitta bot faqat bitta do'konga ulanadi (`botIndex`).
 
-1. Ega «Obuna va to'lov»da to'plamni belgilab to'laydi (yoki
-   «Kuryerlar va bot» sahifasidagi «Ulash» tugmasi).
-2. Siz `/super` da chekni tasdiqlaysiz — do'konda «Telegram · bot ulang!»
-   belgisi paydo bo'ladi, egada esa «Ulanmoqda» holati va yo'riqnoma.
-3. Bot: @BotFather → `/newbot` (ega yaratib tokenni yuboradi yoki siz yaratasiz).
-4. `/super` → **Do'konlar** → do'kon → **Boshqarish** → Telegram: tokenni
-   kiriting va saqlang. Server o'zi: tokenni tekshiradi, webhook
-   (`/api/telegram?shop=<id>`) va menyu tugmasini o'rnatadi. Shu zahoti
-   egada kuryer bo'limlari ochiladi.
-5. Ega «Xodimlar» bo'limida kuryerlarni Telegram ID si bilan qo'shadi.
-
-Botni uzish: token maydoniga `-` yozib saqlang.
+Yordam kerak bo'lsa: `/super` → **Do'konlar** → do'kon → **Boshqarish** →
+Telegram bot: tokenni kiriting. Uzish — token maydoniga `-`.
 
 ### O'z domeni
 
@@ -111,7 +112,8 @@ node scripts/setup-firebase.mjs --rules-only
 
 - **To'lov**: obuna ham, xaridor to'lovi ham — kartaga o'tkazma + chek. Payme
   yoki Click orqali avtomatik to'lov ulanmagan.
-- **Yangi buyurtma xabari**: Telegram xizmati ulanmagan do'konda admin panel
-  ochiq bo'lsa ovozli signal chalinadi; SMS yoki email xabari yo'q.
+- **Yangi buyurtma xabari**: o'z boti ulanmagan do'konda xabar SavdoGO boti
+  orqali keladi (ega Telegram orqali ochgan yoki raqamini botga yuborgan
+  bo'lsa); admin panel ochiq bo'lsa ovozli signal ham chalinadi. SMS yoki email yo'q.
 - **Vercel Hobby** rejasida 12 ta funksiya — hozir aniq 12 ta. Yangi endpoint
   kerak bo'lsa mavjudlaridan biriga `action` qo'shing (masalan `api/platform.ts`).

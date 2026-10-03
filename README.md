@@ -3,7 +3,8 @@
 Tadbirkor landingda formani to'ldiradi (biznes turi, nomi, logosi, ranglari,
 yetkazish va to'lov shartlari), va 5 daqiqada o'z subdomenida do'kon ochiladi:
 `nomi.savdogo.shop`. Mijozlar uchun sayt, do'kon egasi uchun admin panel va
-platforma egasi uchun `/super` panel — bitta kod bazasida.
+platforma egasi uchun `/super` panel — bitta kod bazasida. Xuddi shu forma
+**SavdoGO botida** (Telegram mini app) ham ochiladi — parolsiz.
 
 | Sahifa | Manzil | Kim uchun |
 | --- | --- | --- |
@@ -24,7 +25,7 @@ platforma egasi uchun `/super` panel — bitta kod bazasida.
    kunlar soni `src/platform/plans.ts → TRIAL_DAYS`).
 3. **Bepul sinov**: hamma amallar ochiq — mahsulot qo'shish, buyurtma qabul
    qilish, xodimlar, aksiyalar. Admin panel tepasida "Bepul sinov: N kun
-   qoldi" qatori. «Telegram va kuryerlar» to'plami sinovga kirmaydi.
+   qoldi" qatori. O'z Telegram botini ulash — sinovda ham, keyin ham bepul.
 4. **Sinov tugagach** — ko'rish rejimi: sayt ochiladi (tepada "buyurtma
    qabul qilinmayapti" qatori), admin panelning hamma bo'limi ko'rinadi,
    lekin har qanday o'zgartirish server tomonidan 402 bilan to'xtaydi va
@@ -36,6 +37,24 @@ platforma egasi uchun `/super` panel — bitta kod bazasida.
    `active` bo'ladi, `trial` o'chadi, muddat qo'shiladi (eski muddat yoki
    sinovning qolgan kunlari ustiga). Ochiq turgan sayt va panel qayta
    yuklanmasdan yangilanadi.
+
+### Telegram orqali (SavdoGO boti)
+
+Hamma uchun bitta bot (`PLATFORM_BOT_TOKEN`, webhook `/api/telegram?platform=1`,
+mantiq — [`api/_lib/platform/tgbot.ts`](api/_lib/platform/tgbot.ts)):
+
+1. `/start` → «📱 Raqamni yuborish» — telefonni Telegram tasdiqlaydi
+   (`tgUsers/{telegramId}`). Saytda shu raqam bilan ochilgan do'kon bo'lsa,
+   egasi shu Telegram'ga biriktiriladi.
+2. «🛍 Do'kon ochish» — saytdagi o'sha forma mini app'da ochiladi; email va
+   parol so'ralmaydi (`shop.create` + `telegram: initData`).
+3. Do'kon tayyor — botda menyu: ⚙️ Boshqaruv paneli (Telegram ichida
+   parolsiz), 🌐 Do'konni ochish, 🤖 O'z botimni ulash (tokenni yuboradi —
+   xabar o'chiriladi), 💻 Kompyuterda ochish (10 daqiqalik bir martalik havola).
+4. Kompyuterdagi kirish oynasida «Telegram orqali kirish»: botda ekrandagi
+   4 xonali kod ko'rinadi, ega tasdiqlaydi — oyna o'zi kiradi
+   ([`api/_lib/platform/tglogin.ts`](api/_lib/platform/tglogin.ts)).
+5. O'z boti ulanmagan do'konga yangi buyurtma xabari SavdoGO boti orqali keladi.
 
 ### Bitta ega — bitta do'kon
 
@@ -67,7 +86,7 @@ Hisobning do'konlari — `staffIndex/{uid}.shops`, faol do'kon —
 | Haftalik | 89 000 so'm | 7 kun |
 | Oylik | 199 000 so'm | 30 kun |
 | Yillik | 2 000 000 so'm | 365 kun (−16%) |
-| Telegram mini app ulash | $50 | bir martalik |
+| O'z Telegram botini ulash | bepul | — |
 
 Narxlar bitta joyda: [`src/platform/plans.ts`](src/platform/plans.ts) — landing,
 forma, admin panel va server shu fayldan o'qiydi.
@@ -80,6 +99,10 @@ shops/{id}                  do'konning ommaviy hujjati: nom, logo, ranglar, aloq
 shops/{id}/products|categories|sections|orders|users|staff|settings|...
 shopPrivate/{id}            egasining ma'lumoti (email, telefon)
 shopSecrets/{id}            Telegram bot tokeni — brauzer hech qachon o'qimaydi
+botIndex/{botId}            qaysi bot qaysi do'konga ulangan (bitta bot — bitta do'kon)
+tgUsers/{telegramId}        SavdoGO botidagi foydalanuvchi: tasdiqlangan telefon, egasining uid'i
+loginCodes/{sha256}         bir martalik kirish havolalari (10 daqiqa)
+loginRequests/{nonce}       kompyuterdagi «Telegram orqali kirish» so'rovlari (5 daqiqa)
 staffIndex/{uid}            xodim qaysi do'konniki (shopId — faol, shops — hammasi)
 ownerPhones/{998...}        egasining telefoni band — «bitta ega — bitta do'kon»
 shopRequests/{id}           ikkinchi do'kon arizalari (pending → approved → used)

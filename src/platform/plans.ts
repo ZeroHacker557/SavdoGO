@@ -19,7 +19,17 @@ export const PLATFORM = {
   telegram: '@for_name',
   telegramHref: 'https://t.me/for_name',
   email: 'abubakrfrontend@gmail.com',
+  /**
+   * SavdoGO boti (PLATFORM_BOT_TOKEN egasi) — @ siz. Bo'sh bo'lsa landingdagi
+   * «Telegram orqali ochish» tugmasi ko'rinmaydi; bot o'zi baribir ishlaydi.
+   */
+  botUsername: '' as string,
 } as const
+
+/** SavdoGO botiga havola (bot sozlanmagan bo'lsa — null). */
+export function platformBotLink(): string | null {
+  return PLATFORM.botUsername ? `https://t.me/${PLATFORM.botUsername}` : null
+}
 
 export type PlanId = 'week' | 'month' | 'year'
 
@@ -55,12 +65,9 @@ export const YEAR_SAVING_PERCENT = Math.round((YEAR_SAVING / (PLANS.month.price 
  * Bepul sinov: yangi do'kon shuncha kun TO'LIQ ishlaydi — mahsulot
  * qo'shish, buyurtma qabul qilish, hamma bo'lim ochiq. Muddat tugagach
  * do'kon «obuna tugagan» holatiga o'tadi va tanlangan tarif to'lanadi.
- * Telegram to'plami sinovga kirmaydi (u bot ulanishini talab qiladi).
+ * O'z Telegram botini ulash — sinovda ham, keyin ham bepul.
  */
 export const TRIAL_DAYS = 10
-
-/** Telegram mini app ulash — bir martalik, keyin oylik to'lov yo'q. */
-export const TELEGRAM_ADDON = { priceUsd: 50 } as const
 
 export function formatSum(value: number): string {
   return `${Math.round(value).toLocaleString('ru-RU').replace(/\u00a0/g, ' ')} so‘m`

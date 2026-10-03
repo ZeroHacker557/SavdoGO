@@ -8,7 +8,7 @@ import {
   BUSINESS_TYPES, COLOR_PRESETS, FONT_PAIRS, businessType, type BusinessTypeId, type FontPairId,
 } from '../../platform/business-types'
 import { typeIcon } from '../../platform/business-icons'
-import { PLANS, PLAN_ORDER, PLATFORM, TELEGRAM_ADDON, TRIAL_DAYS, YEAR_SAVING_PERCENT, formatSum } from '../../platform/config'
+import { PLANS, PLAN_ORDER, PLATFORM, TRIAL_DAYS, YEAR_SAVING_PERCENT, formatSum } from '../../platform/config'
 import { ADDON_NAME } from '../../platform/addon'
 import { inkOn } from '../../platform/palette'
 import { initials, type ShopDraft } from '../../platform/shop'
@@ -417,9 +417,11 @@ type AccountProps = StepProps & {
   slugState: SlugState
   /** Tasdiqlangan ariza — hisob maydonlari o'rniga mavjud hisob ko'rsatiladi. */
   invite?: InviteInfo
+  /** SavdoGO botidan: telefon tasdiqlangan, email/parol so'ralmaydi. */
+  telegram?: boolean
 }
 
-export function StepAccount({ draft, update, errors, owner, setOwner, slugState, invite }: AccountProps) {
+export function StepAccount({ draft, update, errors, owner, setOwner, slugState, invite, telegram = false }: AccountProps) {
   const [showPassword, setShowPassword] = useState(false)
 
   return (
@@ -428,7 +430,9 @@ export function StepAccount({ draft, update, errors, owner, setOwner, slugState,
       <p className="wz-lead">
         {invite
           ? 'Yangi do‘kon manzili va tarifi. Hisobingiz o‘sha — alohida login kerak emas.'
-          : 'Do‘koningiz manzili va admin panelga kirish uchun hisob.'}
+          : telegram
+            ? 'Do‘koningiz manzili. Boshqaruv paneliga Telegram orqali parolsiz kirasiz.'
+            : 'Do‘koningiz manzili va admin panelga kirish uchun hisob.'}
       </p>
 
       <div className="wz-grid">
@@ -473,52 +477,66 @@ export function StepAccount({ draft, update, errors, owner, setOwner, slugState,
               />
             </Field>
 
-            <Field label="Telefoningiz" error={errors.ownerPhone}>
-              <Input
-                icon={Phone}
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder="+998 90 123 45 67"
-                value={owner.phone}
-                invalid={!!errors.ownerPhone}
-                onFocus={() => !owner.phone && setOwner({ phone: '+998 ' })}
-                onChange={(e) => setOwner({ phone: maskPhone(e.target.value) })}
-              />
-            </Field>
+            {telegram ? (
+              <div className="wz-owner">
+                <span className="wz-owner__icon"><UserCheck size={20} /></span>
+                <span className="wz-owner__text">
+                  <b>{owner.phone}</b>
+                  <small>Telegram orqali tasdiqlangan</small>
+                </span>
+              </div>
+            ) : (
+              <Field label="Telefoningiz" error={errors.ownerPhone}>
+                <Input
+                  icon={Phone}
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="+998 90 123 45 67"
+                  value={owner.phone}
+                  invalid={!!errors.ownerPhone}
+                  onFocus={() => !owner.phone && setOwner({ phone: '+998 ' })}
+                  onChange={(e) => setOwner({ phone: maskPhone(e.target.value) })}
+                />
+              </Field>
+            )}
 
-            <Field label="Email" error={errors.email} hint="Admin panelga shu email bilan kirasiz">
-              <Input
-                icon={Mail}
-                type="email"
-                autoComplete="email"
-                placeholder="siz@gmail.com"
-                value={owner.email}
-                invalid={!!errors.email}
-                onChange={(e) => setOwner({ email: e.target.value.trim() })}
-              />
-            </Field>
+            {!telegram && (
+              <>
+                <Field label="Email" error={errors.email} hint="Admin panelga shu email bilan kirasiz">
+                  <Input
+                    icon={Mail}
+                    type="email"
+                    autoComplete="email"
+                    placeholder="siz@gmail.com"
+                    value={owner.email}
+                    invalid={!!errors.email}
+                    onChange={(e) => setOwner({ email: e.target.value.trim() })}
+                  />
+                </Field>
 
-            <Field label="Parol" error={errors.password} hint="Kamida 8 ta belgi">
-              <Input
-                icon={Lock}
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="new-password"
-                placeholder="••••••••"
-                value={owner.password}
-                invalid={!!errors.password}
-                onChange={(e) => setOwner({ password: e.target.value })}
-                suffix={
-                  <button
-                    type="button"
-                    className="wz-icon-btn"
-                    aria-label={showPassword ? 'Parolni yashirish' : 'Parolni ko‘rsatish'}
-                    onClick={() => setShowPassword((v) => !v)}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                }
-              />
-            </Field>
+                <Field label="Parol" error={errors.password} hint="Kamida 8 ta belgi">
+                  <Input
+                    icon={Lock}
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    placeholder="••••••••"
+                    value={owner.password}
+                    invalid={!!errors.password}
+                    onChange={(e) => setOwner({ password: e.target.value })}
+                    suffix={
+                      <button
+                        type="button"
+                        className="wz-icon-btn"
+                        aria-label={showPassword ? 'Parolni yashirish' : 'Parolni ko‘rsatish'}
+                        onClick={() => setShowPassword((v) => !v)}
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    }
+                  />
+                </Field>
+              </>
+            )}
           </>
         )}
       </div>
@@ -546,14 +564,14 @@ export function StepAccount({ draft, update, errors, owner, setOwner, slugState,
         })}
       </div>
 
-      <div style={{ marginTop: 12 }}>
-        <Toggle
-          icon={Send}
-          title={`+ «${ADDON_NAME}» — $${TELEGRAM_ADDON.priceUsd}, bir marta`}
-          text="Kuryerlar ilovasi, jonli xarita, buyurtmalar Telegram’ga va do‘kon bot ichida. Oylik to‘lovsiz — xohlasangiz keyin ham ulaysiz."
-          on={draft.telegramAddon}
-          onChange={(telegramAddon) => update({ telegramAddon })}
-        />
+      {/* O'z boti — bepul, do'kon ochilgach admin panelda yoki SavdoGO botida ulanadi */}
+      <div className="wz-note">
+        <Send size={18} />
+        <h3>«{ADDON_NAME}» — bepul</h3>
+        <p>
+          Do‘kon ochilgach o‘z Telegram botingizni ulaysiz: kuryerlar ilovasi, jonli xarita, buyurtmalar Telegram’ga va
+          do‘kon bot ichida. Hech qanday qo‘shimcha to‘lovsiz.
+        </p>
       </div>
 
       <div className="wz-note">

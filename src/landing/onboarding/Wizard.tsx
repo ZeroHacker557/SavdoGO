@@ -4,14 +4,14 @@ import {
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { businessType, type BusinessTypeId } from '../../platform/business-types'
 import {
-  PLANS, PLATFORM, RESERVED_SLUGS, TELEGRAM_ADDON, TRIAL_DAYS, formatSum, normalizeSlug, shopLink, slugFromName,
+  PLANS, PLATFORM, RESERVED_SLUGS, TRIAL_DAYS, formatSum, normalizeSlug, shopLink, slugFromName,
 } from '../../platform/config'
 import { ShopPreview } from '../../platform/preview/ShopPreview'
-import { ADDON_NAME } from '../../platform/addon'
 import { emptyDraft, loadDraft, saveDraft, clearDraft, type ShopDraft } from '../../platform/shop'
 import { isApiMissing, platformApi, PlatformApiError } from '../../platform/api'
 import { rememberOwnerShop } from '../../platform/owner-marker'
 import { NEW_SHOP_URL, type InviteInfo } from './invite'
+import { openExternal, type TelegramOwner } from './telegram'
 import { Logo } from '../components/Logo'
 import { goTo } from '../router'
 import { isEmailValid, isPhoneValid } from './format'
@@ -22,7 +22,7 @@ const STEPS = ['Biznes turi', 'Ma’lumotlar', 'Yetkazish va to‘lov', 'Dizayn'
 
 type Errors = Record<string, string | null>
 
-function validate(step: number, draft: ShopDraft, owner: Owner, slugState: SlugState, invite: boolean): Errors {
+function validate(step: number, draft: ShopDraft, owner: Owner, slugState: SlugState, invite: boolean, telegram: boolean): Errors {
   const e: Errors = {}
   if (step === 1) {
     if (draft.name.trim().length < 2) e.name = 'Biznes nomini kiriting'
@@ -43,6 +43,8 @@ function validate(step: number, draft: ShopDraft, owner: Owner, slugState: SlugS
     // Tasdiqlangan ariza — do'kon mavjud hisobga qo'shiladi, hisob ma'lumoti so'ralmaydi
     if (invite) return Object.fromEntries(Object.entries(e).filter(([, v]) => v))
     if (owner.name.trim().length < 2) e.ownerName = 'Ismingizni kiriting'
+    // Telegram rejimi: telefonni Telegram tasdiqlagan, email/parol yo'q
+    if (telegram) return Object.fromEntries(Object.entries(e).filter(([, v]) => v))
     if (!isPhoneValid(owner.phone)) e.ownerPhone = 'Telefon raqamni to‘liq kiriting'
     if (!isEmailValid(owner.email)) e.email = 'Email manzili noto‘g‘ri'
     if (owner.password.length < 8) e.password = 'Parol kamida 8 ta belgidan iborat bo‘lsin'
@@ -55,9 +57,13 @@ function inviteDraft(invite: InviteInfo): ShopDraft {
   return { ...emptyDraft(businessType(invite.type).id), name: invite.name, slug: invite.slug }
 }
 
-export function Wizard({ invite }: { invite?: InviteInfo }) {
+/**
+ * `telegram` — forma SavdoGO botidan ochilgan (telegram.ts): ism va
+ * tasdiqlangan telefon tayyor, email/parol so'ralmaydi.
+ */
+export function Wizard({ invite, telegram }: { invite?: InviteInfo; telegram?: TelegramOwner }) {
   const [draft, setDraft] = useState<ShopDraft>(() => (invite ? inviteDraft(invite) : loadDraft() ?? emptyDraft()))
-  const [owner, setOwnerState] = useState<Owner>({ name: '', email: '', password: '', phone: '' })
+  const [owner, setOwnerState] = useState<Owner>({ name: telegram?.name ?? '', email: '', password: '', phone: telegram?.phone ?? '' })
   const [step, setStep] = useState(0)
   const [direction, setDirection] = useState<'fwd' | 'back'>('fwd')
   const [errors, setErrors] = useState<Errors>({})
@@ -154,7 +160,7 @@ export function Wizard({ invite }: { invite?: InviteInfo }) {
 
   const next = async (event?: FormEvent) => {
     event?.preventDefault()
-    const found = validate(step, draft, owner, slugState, Boolean(invite))
+    const found = validate(step, draft, owner, slugState, Boolean(invite), Boolean(telegram))
     setErrors(found)
     if (Object.keys(found).length) return
     if (step < STEPS.length - 1) {
@@ -187,6 +193,15 @@ export function Wizard({ invite }: { invite?: InviteInfo }) {
         await refreshStaffToken()
         shopId = result.shopId
         signedIn = true
+      } else if (telegram) {
+        // SavdoGO botidan: kim ekanligi — initData, telefon — botdagi kontakt
+        const result = await platformApi<{ shopId: string }>('shop.create', {
+          draft: { ...draft, slug },
+          owner: { name: owner.name.trim() },
+          telegram: telegram.initData,
+        })
+        shopId = result.shopId
+        signedIn = false
       } else {
         const result = await platformApi<{ shopId: string }>('shop.create', {
           draft: { ...draft, slug },
@@ -244,7 +259,7 @@ export function Wizard({ invite }: { invite?: InviteInfo }) {
         <div className="wz-main">
           <div className="wz-top"><Logo /></div>
           <div className="wz-body">
-            <Done slug={created.slug} draft={draft} signedIn={created.signedIn} invite={Boolean(invite)} />
+            <Done slug={created.slug} draft={draft} signedIn={created.signedIn} invite={Boolean(invite)} telegram={Boolean(telegram)} />
           </div>
         </div>
         <aside className="wz-side" aria-label="Do‘kon ko‘rinishi">
@@ -309,6 +324,7 @@ export function Wizard({ invite }: { invite?: InviteInfo }) {
                 setOwner={setOwner}
                 slugState={slugState}
                 invite={invite}
+                telegram={Boolean(telegram)}
               />
             )}
           </div>
@@ -427,7 +443,7 @@ function Confetti({ colors }: { colors: string[] }) {
   )
 }
 
-function Done({ slug, draft, signedIn, invite }: { slug: string; draft: ShopDraft; signedIn: boolean; invite: boolean }) {
+function Done({ slug, draft, signedIn, invite, telegram }: { slug: string; draft: ShopDraft; signedIn: boolean; invite: boolean; telegram: boolean }) {
   const [copied, setCopied] = useState(false)
   const [burst, setBurst] = useState(true)
   const link = shopLink(slug)
@@ -465,15 +481,32 @@ function Done({ slug, draft, signedIn, invite }: { slug: string; draft: ShopDraf
         </button>
       </div>
 
-      <div className="wz-done__actions">
-        <a className="lp-btn lp-btn--primary" href={link} target="_blank" rel="noreferrer">
-          Do‘konni ochish <ExternalLink size={18} />
-        </a>
-        <a className="lp-btn lp-btn--ghost" href="/admin">
-          <LayoutDashboard size={18} /> Admin panel
-        </a>
-      </div>
-      {!signedIn && (
+      {telegram ? (
+        // Telegram ichida: panel shu oynada parolsiz ochiladi, sayt — brauzerda
+        <div className="wz-done__actions">
+          <a className="lp-btn lp-btn--primary" href="/admin">
+            <LayoutDashboard size={18} /> Boshqaruv paneli
+          </a>
+          <button type="button" className="lp-btn lp-btn--ghost" onClick={() => openExternal(`https://${slug}.${PLATFORM.rootDomain}`)}>
+            Do‘konni ochish <ExternalLink size={18} />
+          </button>
+        </div>
+      ) : (
+        <div className="wz-done__actions">
+          <a className="lp-btn lp-btn--primary" href={link} target="_blank" rel="noreferrer">
+            Do‘konni ochish <ExternalLink size={18} />
+          </a>
+          <a className="lp-btn lp-btn--ghost" href="/admin">
+            <LayoutDashboard size={18} /> Admin panel
+          </a>
+        </div>
+      )}
+      {telegram && (
+        <p className="wz-hint" style={{ marginTop: 12 }}>
+          Havola va boshqaruv tugmalari SavdoGO botiga ham yuborildi. Panelga Telegram orqali parolsiz kirasiz.
+        </p>
+      )}
+      {!signedIn && !telegram && (
         <p className="wz-hint" style={{ marginTop: 12 }}>
           Admin panelga ro‘yxatdan o‘tgan email va parolingiz bilan kirasiz.
         </p>
@@ -494,12 +527,6 @@ function Done({ slug, draft, signedIn, invite }: { slug: string; draft: ShopDraf
           <span>Tarif: {plan.name}</span>
           <b>{formatSum(plan.price)}</b>
         </div>
-        {draft.telegramAddon && (
-          <div className="wz-pay__row">
-            <span>«{ADDON_NAME}» (bir marta)</span>
-            <b>${TELEGRAM_ADDON.priceUsd}</b>
-          </div>
-        )}
       </div>
     </div>
   )

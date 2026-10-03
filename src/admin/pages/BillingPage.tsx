@@ -1,12 +1,11 @@
 import {
-  Check, CheckCircle2, Clock, Copy, ImagePlus, Loader2, Receipt, Send, ShieldCheck, Trash2, XCircle,
+  ArrowRight, Check, CheckCircle2, Clock, Copy, ImagePlus, Loader2, Receipt, Send, ShieldCheck, Trash2, XCircle,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { PLANS, PLAN_ORDER, PLATFORM, TELEGRAM_ADDON, TRIAL_DAYS, YEAR_SAVING_PERCENT, formatSum, type PlanId } from '../../platform/config'
+import { PLANS, PLAN_ORDER, PLATFORM, TRIAL_DAYS, YEAR_SAVING_PERCENT, formatSum, type PlanId } from '../../platform/config'
 import { apiPost } from '../lib/api'
 import { daysLeft, isLocked, useAdminShop } from '../lib/shop'
 import { useToast } from '../components/Toast'
-import { ADDON_BENEFITS, ADDON_NAME, ADDON_PITCH, ADDON_PRICE } from '../../platform/addon'
 
 type Payment = {
   id: string
@@ -67,14 +66,12 @@ async function compressReceipt(file: File): Promise<string> {
  * faollashadi — bu sahifa do'kon hujjatini jonli kuzatgani uchun
  * holat o'zi yangilanadi.
  */
-export function BillingPage({ preselectAddon = false }: { preselectAddon?: boolean }) {
+export function BillingPage() {
   const shop = useAdminShop()
   const { show, node: toast } = useToast()
   const [data, setData] = useState<Billing | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [plan, setPlan] = useState<PlanId>(shop.plan)
-  // «Kuryerlar va Telegram» sahifasidagi «Ulash» tugmasidan kelganda — belgilangan
-  const [addon, setAddon] = useState(preselectAddon)
   const [receipt, setReceipt] = useState<string | null>(null)
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
@@ -103,7 +100,6 @@ export function BillingPage({ preselectAddon = false }: { preselectAddon?: boole
   const locked = isLocked(shop)
   const left = daysLeft(shop)
   const pending = data?.payments.find((p) => p.status === 'pending')
-  const hasAddon = shop.telegramAddon || data?.telegramAddon
 
   const pickFile = async (file: File | undefined) => {
     if (!file) return
@@ -118,7 +114,7 @@ export function BillingPage({ preselectAddon = false }: { preselectAddon?: boole
     if (!receipt) return show('Avval chek rasmini yuklang', 'error')
     setBusy(true)
     try {
-      await apiPost('/api/platform', { action: 'billing.submit', plan, telegramAddon: addon, receipt, note })
+      await apiPost('/api/platform', { action: 'billing.submit', plan, receipt, note })
       show('Chek yuborildi — tekshirilgach do‘kon faollashadi')
       setReceipt(null)
       setNote('')
@@ -203,34 +199,22 @@ export function BillingPage({ preselectAddon = false }: { preselectAddon?: boole
             })}
           </div>
 
-          {hasAddon ? (
+          {/* Bot tarifga kirmaydi — bepul, alohida ulanadi */}
+          {shop.botUsername ? (
             <p className="mt-3 flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm" style={{ background: 'var(--success-soft)' }}>
               <CheckCircle2 size={16} style={{ color: 'var(--success)' }} />
-              «{ADDON_NAME}» to‘plami {shop.botUsername ? <>ulangan — <b>@{shop.botUsername}</b></> : 'to‘langan — botingizni ulayapmiz'}
+              Telegram bot ulangan — <b>@{shop.botUsername}</b>
             </p>
           ) : (
-            <label
-              className="mt-3 grid cursor-pointer gap-3 rounded-2xl border-2 p-4"
-              style={{ borderColor: addon ? '#229ED9' : 'var(--line)', background: addon ? 'rgb(34 158 217 / 0.08)' : 'var(--surface)' }}
+            <a
+              href="#/telegram"
+              className="mt-3 flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm"
+              style={{ background: 'rgb(34 158 217 / 0.08)', color: 'var(--ink-2)' }}
             >
-              <span className="flex items-start gap-3">
-                <input type="checkbox" className="mt-1 size-4" checked={addon} onChange={(e) => setAddon(e.target.checked)} />
-                <span className="min-w-0 flex-1 text-sm">
-                  <b className="block">+ «{ADDON_NAME}» — {ADDON_PRICE}, bir martalik</b>
-                  <span className="block" style={{ color: 'var(--muted)' }}>{ADDON_PITCH}</span>
-                </span>
-              </span>
-              <span className="grid gap-1.5 pl-7 sm:grid-cols-2">
-                {ADDON_BENEFITS.slice(0, 4).map(({ icon: Icon, title }) => (
-                  <span key={title} className="flex items-center gap-2 text-xs font-bold">
-                    <Icon size={15} style={{ color: '#229ED9' }} /> {title}
-                  </span>
-                ))}
-              </span>
-              <span className="pl-7 text-xs" style={{ color: 'var(--faint)' }}>
-                Summani so‘mda (kurs bo‘yicha) tarif bilan birga shu kartaga o‘tkazing — botni ulash uchun siz bilan bog‘lanamiz.
-              </span>
-            </label>
+              <Send size={16} style={{ color: '#229ED9' }} />
+              <span className="flex-1">Kuryerlar va Telegram xabarlari uchun o‘z botingizni ulang — <b>bepul</b></span>
+              <ArrowRight size={15} style={{ color: 'var(--brand)' }} />
+            </a>
           )}
         </section>
 
@@ -255,7 +239,7 @@ export function BillingPage({ preselectAddon = false }: { preselectAddon?: boole
           <div className="mt-3 flex items-center justify-between rounded-xl px-4 py-3" style={{ background: 'var(--brand-soft)' }}>
             <span className="text-sm font-bold">O‘tkaziladigan summa</span>
             <span className="text-lg font-extrabold" style={{ color: 'var(--brand)' }}>
-              {formatSum(PLANS[plan].price)}{addon ? ` + $${TELEGRAM_ADDON.priceUsd}` : ''}
+              {formatSum(PLANS[plan].price)}
             </span>
           </div>
           {data?.card.note && <p className="mt-2 text-sm" style={{ color: 'var(--muted)' }}>{data.card.note}</p>}

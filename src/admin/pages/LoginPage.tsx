@@ -1,14 +1,20 @@
-import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail, ShoppingBag } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail, Send, ShoppingBag } from 'lucide-react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { PLATFORM } from '../../platform/config'
-import { authErrorText, login, resetPassword } from '../lib/auth'
+import {
+  authErrorText, login, pollTelegramLogin, resetPassword, startTelegramLogin, type TelegramLoginRequest,
+} from '../lib/auth'
+import { isInTelegram } from '../lib/telegram'
 
-export function LoginPage() {
+const TELEGRAM_BLUE = '#229ED9'
+
+/** `notice` — parolsiz kirish o'xshamagan bo'lsa sababi (masalan eskirgan havola). */
+export function LoginPage({ notice: initialNotice }: { notice?: string }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(initialNotice ?? '')
   const [notice, setNotice] = useState('')
 
   const submit = async (event: FormEvent) => {
@@ -56,7 +62,7 @@ export function LoginPage() {
 
         <h1 className="mt-5 text-center text-xl font-extrabold">Do‘kon boshqaruvi</h1>
         <p className="mt-1 text-center text-sm" style={{ color: 'var(--muted)' }}>
-          Ro‘yxatdan o‘tgan email va parolingiz bilan kiring
+          Email va parolingiz yoki Telegram orqali kiring
         </p>
 
         <div className="mt-6">
@@ -149,6 +155,7 @@ export function LoginPage() {
         >
           Parolni unutdingizmi?
         </button>
+        <TelegramLogin />
         <a
           href="/start"
           className="mt-5 flex items-center justify-center gap-1.5 text-sm font-bold"
@@ -157,6 +164,103 @@ export function LoginPage() {
           Do‘koningiz yo‘qmi? 5 daqiqada yarating <ArrowRight size={15} />
         </a>
       </form>
+    </div>
+  )
+}
+
+/**
+ * Kompyuterda «Telegram orqali kirish» — SavdoGO botida do'kon ochgan
+ * (parolsiz) egalar uchun. Botda /start login_<nonce> ochiladi, ega
+ * ekrandagi kodni ko'rib tasdiqlaydi, bu oyna esa tasdiqni kutib turadi.
+ * Telegram ichida ko'rinmaydi — u yerda panel o'zi kiradi.
+ */
+function TelegramLogin() {
+  const [request, setRequest] = useState<TelegramLoginRequest | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!request) return
+    let alive = true
+    let timer = 0
+    const deadline = Date.now() + request.ttl
+    const tick = async () => {
+      if (!alive) return
+      if (Date.now() > deadline) {
+        setRequest(null)
+        setError('Vaqt tugadi — qayta bosing')
+        return
+      }
+      try {
+        const status = await pollTelegramLogin(request.nonce)
+        // Tasdiqlansa AdminApp o'zi panelga o'tkazadi (onAuthStateChanged)
+        if (!alive || status === 'approved') return
+        if (status === 'expired') {
+          setRequest(null)
+          setError('So‘rov eskirdi — qayta bosing')
+          return
+        }
+      } catch {
+        // Aloqa bir lahzaga uzilgan bo'lishi mumkin — kutishda davom etamiz
+      }
+      timer = window.setTimeout(tick, 2000)
+    }
+    timer = window.setTimeout(tick, 2000)
+    return () => {
+      alive = false
+      window.clearTimeout(timer)
+    }
+  }, [request])
+
+  if (isInTelegram()) return null
+
+  const start = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      setRequest(await startTelegramLogin())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Telegram orqali kirib bo‘lmadi')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mt-5 border-t pt-5" style={{ borderColor: 'var(--line)' }}>
+      {request ? (
+        <div className="grid gap-3 text-center">
+          <p className="text-sm font-bold">Telegram’da tasdiqlang</p>
+          <p className="text-xs" style={{ color: 'var(--muted)' }}>Botda shu kod chiqadi — bir xilligini tekshiring:</p>
+          <b className="text-3xl font-extrabold tracking-[0.3em]">{request.code}</b>
+          <a
+            className="adm-btn w-full justify-center py-3"
+            style={{ background: TELEGRAM_BLUE, color: '#fff' }}
+            href={request.link}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Send size={17} /> @{request.botUsername} ni ochish
+          </a>
+          <p className="text-xs" style={{ color: 'var(--faint)' }}>
+            Botda «✅ Ha, bu men» ni bosing — bu oyna o‘zi ochiladi.
+          </p>
+          <span className="flex items-center justify-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
+            <Loader2 size={14} className="animate-spin" /> Tasdiq kutilmoqda...
+          </span>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="adm-btn w-full justify-center py-3"
+          style={{ background: TELEGRAM_BLUE, color: '#fff' }}
+          onClick={start}
+          disabled={busy}
+        >
+          {busy ? <Loader2 size={17} className="animate-spin" /> : <Send size={17} />} Telegram orqali kirish
+        </button>
+      )}
+      {error && <p className="mt-2 text-center text-xs font-semibold" style={{ color: 'var(--danger)' }}>{error}</p>}
     </div>
   )
 }

@@ -1,11 +1,11 @@
 import {
-  ArrowRight, BadgeCheck, BellRing, Check, ExternalLink, Gift, LayoutDashboard, Package, Palette, ShoppingBag, Sparkles, Store,
+  ArrowRight, BadgeCheck, BellRing, Check, ExternalLink, Gift, LayoutDashboard, Package, Palette, Send, ShoppingBag, Sparkles, Store,
 } from 'lucide-react'
 import { createElement, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { businessType, type BusinessTypeId } from '../../platform/business-types'
 import { typeIcon } from '../../platform/business-icons'
 import { ShopPreview } from '../../platform/preview/ShopPreview'
-import { TRIAL_DAYS, formatSum, shopLink } from '../../platform/config'
+import { TRIAL_DAYS, formatSum, platformBotLink, shopLink } from '../../platform/config'
 import { initials } from '../../platform/shop'
 import { goTo } from '../router'
 import { prefersReducedMotion } from '../hooks'
@@ -156,9 +156,16 @@ export function Hero() {
                 <button className="lp-btn lp-btn--primary lp-btn--shine" onClick={() => goTo('start')}>
                   Do‘konimni yaratish <ArrowRight size={19} />
                 </button>
-                <a className="lp-btn lp-btn--ghost" href="#how">
-                  Qanday ishlaydi?
-                </a>
+                {/* SavdoGO boti bo'lsa — do'konni Telegram'da ochish (saytdagi formaning o'zi, parolsiz) */}
+                {platformBotLink() ? (
+                  <a className="lp-btn lp-btn--ghost" href={platformBotLink()!} target="_blank" rel="noreferrer">
+                    <Send size={17} /> Telegram orqali
+                  </a>
+                ) : (
+                  <a className="lp-btn lp-btn--ghost" href="#how">
+                    Qanday ishlaydi?
+                  </a>
+                )}
               </>
             )}
           </div>

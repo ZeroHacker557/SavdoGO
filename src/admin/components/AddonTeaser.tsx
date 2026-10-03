@@ -1,6 +1,6 @@
 import { ArrowRight, Check, Send } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { ADDON_BENEFITS, ADDON_NAME, ADDON_PRICE } from '../../platform/addon'
+import { ADDON_BENEFITS, ADDON_NAME } from '../../platform/addon'
 import { ADDON_EVENT } from '../lib/api'
 import { Modal } from './Modal'
 
@@ -9,7 +9,7 @@ function openAddonPage() {
 }
 
 /**
- * Kuryer imkoniyati turadigan joyda — to'plam haqida qisqa taklif.
+ * Kuryer imkoniyati turadigan joyda — botni ulash haqida qisqa taklif.
  * `compact` — bitta qator (buyurtma oynasi kabi tor joylar uchun).
  */
 export function AddonTeaser({ title, compact = false }: { title: string; compact?: boolean }) {
@@ -22,7 +22,7 @@ export function AddonTeaser({ title, compact = false }: { title: string; compact
         style={{ background: 'var(--brand-soft)', color: 'var(--ink-2)' }}
       >
         <Send size={14} className="shrink-0" style={{ color: '#229ED9' }} />
-        <span className="min-w-0 flex-1">{title} — <b>«{ADDON_NAME}»</b> to‘plamida</span>
+        <span className="min-w-0 flex-1">{title} — Telegram botingizni <b>bepul</b> ulang</span>
         <ArrowRight size={14} className="shrink-0" style={{ color: 'var(--brand)' }} />
       </button>
     )
@@ -33,19 +33,19 @@ export function AddonTeaser({ title, compact = false }: { title: string; compact
       <div className="min-w-[180px] flex-1">
         <b className="block text-sm">{title}</b>
         <span className="block text-xs" style={{ color: 'var(--muted)' }}>
-          «{ADDON_NAME}» to‘plami bilan ochiladi: kuryerlar ilovasi, jonli xarita, buyurtmalar Telegram’ga.
-          Bir marta {ADDON_PRICE} — oylik to‘lovsiz.
+          Do‘koningizning Telegram boti bilan ochiladi: kuryerlar ilovasi, jonli xarita, buyurtmalar Telegram’ga.
+          Botni ulash bepul — 2 daqiqa.
         </span>
       </div>
       <button type="button" className="adm-btn adm-btn--primary shrink-0" onClick={openAddonPage}>
-        Batafsil <ArrowRight size={15} />
+        Botni ulash <ArrowRight size={15} />
       </button>
     </div>
   )
 }
 
 /**
- * Server «addon-required» qaytarganda (to'plamsiz kuryer amali) —
+ * Server «addon-required» qaytarganda (bot ulanmagan do'konda kuryer amali) —
  * lib/api.ts hodisasini tinglaydi, xuddi to'lov oynasi kabi.
  */
 export function AddonModal() {
@@ -62,20 +62,19 @@ export function AddonModal() {
 
   return (
     <Modal
-      title={`«${ADDON_NAME}» to‘plami kerak`}
+      title={`«${ADDON_NAME}» uchun bot kerak`}
       onClose={close}
       footer={
         <>
           <button className="adm-btn adm-btn--ghost flex-1" onClick={close}>Keyinroq</button>
           <button className="adm-btn adm-btn--primary flex-1" onClick={() => { close(); openAddonPage() }}>
-            Batafsil <ArrowRight size={16} />
+            Botni ulash <ArrowRight size={16} />
           </button>
         </>
       }
     >
       <p className="text-sm" style={{ color: 'var(--ink-2)' }}>
-        Bu imkoniyat kuryerlar va Telegram bot bilan ishlaydi. To‘plamni bir marta ulaysiz ({ADDON_PRICE}) — keyin oylik
-        to‘lov yo‘q:
+        Bu imkoniyat do‘koningizning Telegram boti bilan ishlaydi. Botni o‘zingiz ulaysiz — bepul, 2 daqiqada:
       </p>
       <ul className="mt-3 grid gap-2">
         {ADDON_BENEFITS.slice(0, 4).map((benefit) => (

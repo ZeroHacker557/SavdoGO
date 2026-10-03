@@ -1,23 +1,23 @@
 import type { LucideIcon } from 'lucide-react'
 import { BellRing, Bike, Headset, MapPinned, Megaphone, Send, Wallet } from 'lucide-react'
 import type { ShopConfig } from './shop'
-import { TELEGRAM_ADDON } from './plans'
 
 /**
- * «Telegram va kuryerlar» — bir martalik qo'shimcha to'plam ($50).
+ * «Telegram va kuryerlar» — do'konning o'z Telegram boti bilan ochiladigan
+ * imkoniyatlar. Botni ulash BEPUL: ega BotFather'da bot yaratib, tokenini
+ * admin panelga yoki SavdoGO botiga beradi.
  *
  * Kuryer bilan bog'liq HAMMA narsa (kuryer ilovasi, jonli xarita, kassa,
- * kuryer chati) va Telegram xabarlari faqat shu to'plam sotib olinib,
- * do'kon boti ulangandan keyin ochiladi. Ungacha admin panelda bu
- * bo'limlar o'rnida shu ro'yxat — egani qiziqtiradigan matn — turadi.
+ * kuryer chati) va do'kon botidagi xabarlar bot ulangandan keyin ochiladi.
+ * Ungacha admin panelda bu bo'limlar o'rnida shu ro'yxat va ulash yo'li turadi.
  *
  * Matn bitta joyda: landing, ro'yxatdan o'tish formasi, admin paneldagi
  * «Kuryerlar va Telegram» sahifasi va to'lov bo'limi shundan o'qiydi.
  */
 export const ADDON_NAME = 'Telegram va kuryerlar'
-export const ADDON_PRICE = `$${TELEGRAM_ADDON.priceUsd}`
+export const ADDON_PRICE = 'Bepul'
 export const ADDON_PITCH =
-  'Yetkazib berishni o‘zi boshqaradigan tizim: kuryerlar ilovasi, jonli xarita va Telegram xabarlari. Bir marta to‘lanadi — oylik to‘lov yo‘q.'
+  'Yetkazib berishni o‘zi boshqaradigan tizim: kuryerlar ilovasi, jonli xarita va Telegram xabarlari. O‘z botingizni ulaysiz — bepul, 2 daqiqada.'
 
 export type AddonBenefit = { icon: LucideIcon; title: string; text: string }
 
@@ -60,14 +60,12 @@ export const ADDON_BENEFITS: AddonBenefit[] = [
 ]
 
 /**
- * To'plam holati:
- *   none    — sotib olinmagan: kuryer bo'limlari yopiq, o'rnida taklif
- *   pending — to'langan, bot hali ulanmagan (platforma egasi ulaydi)
- *   active  — bot ulangan: hammasi ochiq
+ * Holat:
+ *   none   — bot ulanmagan: kuryer bo'limlari yopiq, o'rnida ulash yo'li
+ *   active — bot ulangan: hammasi ochiq
  */
-export type AddonState = 'none' | 'pending' | 'active'
+export type AddonState = 'none' | 'active'
 
-export function addonState(shop: Pick<ShopConfig, 'telegramAddon' | 'botUsername'>): AddonState {
-  if (shop.botUsername) return 'active'
-  return shop.telegramAddon ? 'pending' : 'none'
+export function addonState(shop: Pick<ShopConfig, 'botUsername'>): AddonState {
+  return shop.botUsername ? 'active' : 'none'
 }
