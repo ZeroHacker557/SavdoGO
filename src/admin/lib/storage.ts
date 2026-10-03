@@ -176,3 +176,28 @@ export async function uploadBroadcastMedia(file: File): Promise<UploadedAdMedia>
 
   throw new Error('Faqat rasm yoki video fayl')
 }
+
+/**
+ * /super → «Xabar» (SavdoGO boti): `platform/broadcast/` ga. Faqat super-admin
+ * yoza oladi (storage.rules). Cheklovlar — do'kon ommaviy xabari bilan bir xil.
+ */
+export async function uploadPlatformBroadcastMedia(file: File): Promise<UploadedAdMedia> {
+  const base = `platform/broadcast/${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+
+  if (file.type.startsWith('image/')) {
+    if (file.size > AD_IMAGE_MAX) throw new Error('Rasm 15 MB dan katta bo‘lmasin')
+    const blob = await compress(file, 1600, 0.86, true)
+    return { type: 'image', url: await put(`${base}.jpg`, blob, 'image/jpeg') }
+  }
+
+  if (file.type.startsWith('video/')) {
+    if (!AD_VIDEO_TYPES.includes(file.type)) throw new Error('Video MP4 formatida bo‘lsin')
+    if (file.size > BROADCAST_VIDEO_MAX) {
+      throw new Error('Telegram havoladan 20 MB gacha video qabul qiladi — qisqaroq yoki siqilgan variantini yuklang')
+    }
+    const ext = file.type === 'video/webm' ? 'webm' : file.type === 'video/quicktime' ? 'mov' : 'mp4'
+    return { type: 'video', url: await put(`${base}.${ext}`, file, file.type) }
+  }
+
+  throw new Error('Faqat rasm yoki video fayl')
+}

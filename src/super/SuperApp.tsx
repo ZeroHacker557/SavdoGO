@@ -1,6 +1,6 @@
 import {
   BadgeCheck, Ban, Check, CheckCircle2, Clock, Copy, CreditCard, ExternalLink, Eye, FilePlus2, Gift, Globe, LayoutDashboard,
-  Loader2, LogOut, Moon, RefreshCw, Search, Send, Settings2, ShieldAlert, ShoppingBag, Store, Sun, Trash2, TrendingUp, Wallet, X, XCircle,
+  Loader2, LogOut, Megaphone, Moon, RefreshCw, Search, Send, Settings2, ShieldAlert, ShoppingBag, Store, Sun, Trash2, TrendingUp, Wallet, X, XCircle,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import type { User } from 'firebase/auth'
@@ -10,6 +10,7 @@ import { useToast } from '../admin/components/Toast'
 import { BUSINESS_TYPES, businessType } from '../platform/business-types'
 import { PLANS, PLATFORM, formatSum, shopUrl, type PlanId } from '../platform/config'
 import { initials } from '../platform/shop'
+import { Broadcast } from './Broadcast'
 import { inkOn } from '../platform/palette'
 import { typeIcon } from '../platform/business-icons'
 import { applyTheme, getStoredTheme, storeTheme, type ThemeMode } from '../utils/theme'
@@ -218,7 +219,7 @@ function SuperLogin() {
   )
 }
 
-type Tab = 'payments' | 'requests' | 'shops' | 'settings'
+type Tab = 'payments' | 'requests' | 'shops' | 'broadcast' | 'settings'
 
 function SuperPanel({ user }: { user: User }) {
   const [data, setData] = useState<Overview | null>(null)
@@ -293,6 +294,7 @@ function SuperPanel({ user }: { user: User }) {
             ['payments', 'To‘lovlar', CreditCard, pending.length],
             ['requests', 'Arizalar', FilePlus2, data?.stats.requests ?? 0],
             ['shops', 'Do‘konlar', Store, 0],
+            ['broadcast', 'Xabar', Megaphone, 0],
             ['settings', 'Sozlamalar', Settings2, 0],
           ] as const).map(([id, label, Icon, badge]) => (
             <button key={id} className={'sp-tab ' + (tab === id ? 'active' : '')} onClick={() => setTab(id)}>
@@ -331,6 +333,7 @@ function SuperPanel({ user }: { user: User }) {
             {tab === 'payments' && <Payments payments={data.payments} shops={data.shops} run={run} />}
             {tab === 'requests' && <Requests requests={data.requests} shops={data.shops} run={run} />}
             {tab === 'shops' && <Shops shops={data.shops} run={run} />}
+            {tab === 'broadcast' && <Broadcast api={superApi} show={show} />}
             {tab === 'settings' && <PlatformSettings card={data.card} run={run} />}
           </>
         )}

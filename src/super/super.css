@@ -117,3 +117,84 @@
   animation: admFade 0.2s ease;
 }
 .sp-lightbox img { max-width: 100%; max-height: 100%; border-radius: 12px; box-shadow: 0 30px 80px rgb(0 0 0 / 0.5); }
+
+/* «Xabar» — SavdoGO botida ommaviy xabar (Broadcast.tsx) */
+.sp-bc-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 6px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.sp-bc-toolbar__btn,
+.sp-bc-toolbar__emoji {
+  display: grid;
+  place-items: center;
+  min-width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--ink-2);
+  font-size: 0.95rem;
+}
+.sp-bc-toolbar__btn:hover,
+.sp-bc-toolbar__emoji:hover { background: var(--surface); color: var(--brand); }
+.sp-bc-toolbar__ism {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+.sp-bc-toolbar__sep { width: 1px; height: 18px; margin: 0 4px; background: var(--line); }
+.sp-bc-text { font-family: ui-monospace, Consolas, monospace; font-size: 0.85rem; line-height: 1.5; }
+
+.sp-bc-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.sp-bc-option input { margin-top: 3px; }
+.sp-bc-option b { display: block; font-size: 0.82rem; }
+.sp-bc-option small { display: block; color: var(--muted); font-size: 0.72rem; line-height: 1.35; }
+.sp-bc-option.is-on { border-color: var(--brand); background: var(--brand-soft); }
+
+.sp-bc-count {
+  min-width: 26px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 0.72rem;
+  text-align: center;
+}
+.adm-audience__item.active .sp-bc-count { background: var(--brand); color: var(--brand-ink); }
+
+/* Telegram chati foniga o'xshash */
+.sp-bc-chat {
+  padding: 14px;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--brand) 10%, transparent) 0 30%, transparent 31%),
+    radial-gradient(circle at 80% 70%, color-mix(in srgb, #2fa84f 10%, transparent) 0 25%, transparent 26%),
+    var(--surface-2);
+}
+.sp-bc-chat .adm-bc-preview__bubble { background: var(--surface); box-shadow: 0 1px 2px rgb(0 0 0 / 0.08); }
+.sp-bc-chat .adm-bc-preview__bubble a { color: #2f80ed; text-decoration: underline; }
+.sp-bc-chat .adm-bc-preview__bubble code { padding: 0 3px; border-radius: 4px; background: var(--surface-2); font-size: 0.8rem; }
+.sp-bc-row { display: flex; gap: 4px; }
+.sp-bc-row .adm-bc-preview__btn { flex: 1 1 0; min-width: 0; }
+.sp-bc-spoiler { border-radius: 3px; background: var(--ink-2); color: transparent; }
+.sp-bc-spoiler:hover { background: transparent; color: inherit; }

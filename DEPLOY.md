@@ -77,8 +77,20 @@ Firebase Console → **Authentication → Settings → Authorized domains** ga
 2. `/super` → **Sozlamalar** → **Botni sozlash**: webhook
    (`/api/telegram?platform=1`), buyruqlar va tavsif o'rnatiladi.
 3. Botga `/start` yozib tekshiring. `/id` — sizning chat ID (`PLATFORM_CHAT_ID`).
+   Bot profili (bio va tavsif) ham shu tugma bilan yoziladi — matni
+   [`api/_lib/platform/tgbot.ts`](api/_lib/platform/tgbot.ts) → `BOT_ABOUT`, `BOT_DESCRIPTION`.
+   Kod yangilanganda «Botni sozlash» ni yana bir bor bosing.
 4. Bot username'i (hozir `savdogouz_bot`) [`src/platform/plans.ts`](src/platform/plans.ts) → `PLATFORM.botUsername`
    ga yozing — landingda «Telegram orqali» tugmasi paydo bo'ladi.
+
+### Ommaviy xabar (`/super` → **Xabar**)
+
+SavdoGO botidagi hammaga yoki guruhga (do'kon egalari, sinovdagilar, muddati
+tugaganlar, do'kon ochmaganlar...): rasm/video, formatlangan matn, `{ism}`,
+rangli inline tugmalar (havola, «Do'kon ochish», «Boshqaruv paneli»...),
+ovozsiz yuborish, uzatishni taqiqlash, tayyor shablonlar. «Menga sinov» —
+`PLATFORM_CHAT_ID` ga. Botni bloklaganlar o'zi belgilanadi va o'tkazib yuboriladi.
+Rasm/video `platform/broadcast/` ga yuklanadi (storage.rules — faqat super-admin).
 
 ### Do'konning o'z boti — «Telegram va kuryerlar» (bepul)
 

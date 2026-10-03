@@ -52,26 +52,33 @@ type Button =
   | { text: string; callback_data: string }
   | { text: string; web_app: { url: string } }
 
-/** Bot API chaqiruvi. Xato tashlamaydi — bot xabari asosiy amalni buzmasin. */
-export async function tgCall<T = unknown>(method: string, body: Record<string, unknown>): Promise<T | null> {
+export type TgResponse<T> = { ok: boolean; result?: T; error_code?: number; description?: string }
+
+/** Bot API javobi to'liq (xato kodi bilan) — ommaviy xabar bloklaganlarni shundan biladi. */
+export async function tgRequest<T = unknown>(method: string, body: Record<string, unknown>): Promise<TgResponse<T>> {
   const token = platformToken()
-  if (!token) return null
+  if (!token) return { ok: false, description: 'PLATFORM_BOT_TOKEN qo‘yilmagan' }
   try {
     const response = await fetch(`${API}${token}/${method}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-    const json = (await response.json().catch(() => ({}))) as { ok?: boolean; result?: T; description?: string }
-    if (!json.ok) {
-      console.warn(`[tgbot] ${method}:`, json.description || response.status)
-      return null
-    }
-    return (json.result ?? null) as T | null
+    const json = (await response.json().catch(() => ({}))) as TgResponse<T>
+    return json.ok ? json : { ...json, ok: false, error_code: json.error_code ?? response.status }
   } catch (error) {
-    console.warn(`[tgbot] ${method}:`, error)
+    return { ok: false, description: error instanceof Error ? error.message : 'Tarmoq xatosi' }
+  }
+}
+
+/** Bot API chaqiruvi. Xato tashlamaydi — bot xabari asosiy amalni buzmasin. */
+export async function tgCall<T = unknown>(method: string, body: Record<string, unknown>): Promise<T | null> {
+  const json = await tgRequest<T>(method, body)
+  if (!json.ok) {
+    console.warn(`[tgbot] ${method}:`, json.description || json.error_code)
     return null
   }
+  return (json.result ?? null) as T | null
 }
 
 export function sendText(chatId: number | string, text: string, rows?: Button[][], extra: Record<string, unknown> = {}) {
@@ -96,6 +103,10 @@ export type TgUserDoc = {
   uid?: string | null
   /** Keyingi xabarni nima deb tushunish kerak. */
   awaiting?: 'bot-token' | null
+  /** Botni bloklagan — ommaviy xabar unga yuborilmaydi (qayta yozsa — ochiladi). */
+  blocked?: boolean
+  createdAt?: string
+  lastSeen?: string
 }
 
 type TgFrom = { id: number; first_name?: string; last_name?: string; username?: string }
@@ -106,6 +117,25 @@ export async function tgUserRef(telegramId: number) {
 
 export async function readTgUser(telegramId: number): Promise<TgUserDoc> {
   return ((await (await tgUserRef(telegramId)).get()).data() ?? {}) as TgUserDoc
+}
+
+/**
+ * Botga yozgan har kim ro'yxatda (raqam yubormagan bo'lsa ham) — ommaviy
+ * xabar /super dan shu ro'yxatga ketadi. Ism yangilanadi, blok ochiladi.
+ */
+async function touchUser(from: TgFrom, known: TgUserDoc) {
+  const now = new Date().toISOString()
+  await (await tgUserRef(from.id)).set(
+    {
+      firstName: from.first_name || '',
+      lastName: from.last_name ?? null,
+      username: from.username ?? null,
+      lastSeen: now,
+      blocked: false,
+      ...(known.createdAt ? {} : { createdAt: now }),
+    },
+    { merge: true },
+  )
 }
 
 /** Egasining hozirgi do'koni (staffIndex) va uning ommaviy hujjati. */
@@ -201,6 +231,8 @@ type TgMessage = {
 export type PlatformUpdate = {
   message?: TgMessage
   callback_query?: { id: string; from: TgFrom; data?: string; message?: TgMessage }
+  /** Foydalanuvchi botni bloklasa (kicked) yoki qayta ochsa (member). */
+  my_chat_member?: { chat: { id: number; type: string }; from: TgFrom; new_chat_member?: { status?: string } }
 }
 
 /**
@@ -295,6 +327,7 @@ async function onCallback(query: NonNullable<PlatformUpdate['callback_query']>) 
   const chatId = query.message?.chat.id
   if (!chatId) return
   const user = await readTgUser(query.from.id)
+  await touchUser(query.from, user)
 
   if (query.data === 'm') return sendStartMenu(chatId, user, query.from)
   if (!user.uid) return sendStartMenu(chatId, user, query.from)
@@ -344,6 +377,15 @@ async function onCallback(query: NonNullable<PlatformUpdate['callback_query']>) 
 export async function handlePlatformUpdate(update: PlatformUpdate) {
   if (update.callback_query) return onCallback(update.callback_query)
 
+  const member = update.my_chat_member
+  if (member && member.chat.type === 'private') {
+    const status = member.new_chat_member?.status
+    if (status === 'kicked' || status === 'member') {
+      await (await tgUserRef(member.from.id)).set({ blocked: status === 'kicked', updatedAt: new Date().toISOString() }, { merge: true })
+    }
+    return
+  }
+
   const message = update.message
   if (!message?.from || message.chat.type !== 'private') return
   const from = message.from
@@ -352,6 +394,7 @@ export async function handlePlatformUpdate(update: PlatformUpdate) {
 
   const text = (message.text || '').trim()
   const user = await readTgUser(from.id)
+  await touchUser(from, user)
 
   // Platforma egasi uchun: PLATFORM_CHAT_ID ni bilish (webhook bor — getUpdates ishlamaydi)
   if (text === '/id') return sendText(message.chat.id, `Chat ID: <code>${message.chat.id}</code>`)
@@ -370,6 +413,26 @@ export async function handlePlatformUpdate(update: PlatformUpdate) {
 
 /* ─── Sozlash va xabarlar ─────────────────────────────────── */
 
+/**
+ * Bot profili. «Botni sozlash» bosilganda Telegram'ga yoziladi (BotFather'da
+ * qo'lda yozish shart emas). Telegram cheklovlari: bio 120, tavsif 512 belgi.
+ */
+export const BOT_ABOUT =
+  `${PLATFORM.name} — 5 daqiqada tayyor onlayn do‘kon: sayt, Telegram bot va admin panel. ${TRIAL_DAYS} kun bepul 🎁`
+
+export const BOT_DESCRIPTION = [
+  `🛍 ${PLATFORM.name} — biznesingiz uchun tayyor onlayn do‘kon.`,
+  '',
+  'Kafe, kiyim, gul, mebel, kosmetika — qaysi biznes bo‘lmasin, shu botda 5 daqiqada do‘kon ochasiz:',
+  `✅ Shaxsiy sayt: nomingiz.${PLATFORM.rootDomain}`,
+  '✅ Telegram bot — mijozlar do‘konni ilovadek ochadi',
+  '✅ Buyurtmalar, kuryerlar va hisobot — telefoningizda',
+  '✅ Dasturchi va dizayner kerak emas',
+  '',
+  `🎁 ${TRIAL_DAYS} kun bepul, karta kerak emas.`,
+  '👇 «Boshlash» tugmasini bosing',
+].join('\n')
+
 /** Webhook, buyruqlar va tavsif — /super → Sozlamalar → «SavdoGO botini sozlash». */
 export async function setupPlatformBot() {
   const token = platformToken()
@@ -379,15 +442,14 @@ export async function setupPlatformBot() {
   const webhook = await tgCall('setWebhook', {
     url: `${publicBase()}/api/telegram?platform=1`,
     secret_token: platformWebhookSecret(token),
-    allowed_updates: ['message', 'callback_query'],
+    // my_chat_member — kim botni bloklagani (ommaviy xabar ro'yxati uchun)
+    allowed_updates: ['message', 'callback_query', 'my_chat_member'],
     drop_pending_updates: true,
   })
   if (webhook === null) throw new PlatformError('Webhook o‘rnatilmadi — sayt manzili ochiqmi (https)?')
   await tgCall('setMyCommands', { commands: [{ command: 'start', description: 'Bosh menyu — do‘kon ochish va boshqarish' }] })
-  await tgCall('setMyShortDescription', { short_description: `${PLATFORM.name} — 5 daqiqada onlayn do‘kon. ${TRIAL_DAYS} kun bepul.` })
-  await tgCall('setMyDescription', {
-    description: `${PLATFORM.name} — biznesingiz uchun tayyor onlayn do‘kon: sayt, admin panel va Telegram bot. Do‘konni shu botda oching va boshqaring. ${TRIAL_DAYS} kun bepul.`,
-  })
+  await tgCall('setMyShortDescription', { short_description: BOT_ABOUT })
+  await tgCall('setMyDescription', { description: BOT_DESCRIPTION })
   return { botUsername: me.username, webhook: `${publicBase()}/api/telegram?platform=1` }
 }
 

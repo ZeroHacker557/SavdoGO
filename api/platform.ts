@@ -11,6 +11,7 @@ import {
   inviteCheck, ownerOverview, requestApprove, requestCancel, requestReject, requestSubmit, switchShop,
 } from './_lib/platform/owners.js'
 import { tgMe } from './_lib/platform/tglogin.js'
+import { broadcastAudience, broadcastLog, broadcastSend } from './_lib/platform/broadcast.js'
 import { platformToken, setupPlatformBot } from './_lib/platform/tgbot.js'
 
 type Body = Record<string, unknown>
@@ -37,6 +38,7 @@ type Body = Record<string, unknown>
  *     super.shop.update, super.shop.delete, super.settings.save,
  *     super.request.approve, super.request.reject,
  *     super.bot.setup   — SavdoGO boti webhook'i va tavsifi
+ *     super.broadcast.audience / .send / .log — SavdoGO botida ommaviy xabar
  *
  * Bitta funksiya — Vercel Hobby rejasidagi funksiyalar limiti uchun.
  */
@@ -108,6 +110,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json(await requestApprove(await requireSuper(req), body))
       case 'super.request.reject':
         return res.status(200).json(await requestReject(await requireSuper(req), body))
+      case 'super.broadcast.audience':
+        await requireSuper(req)
+        return res.status(200).json(await broadcastAudience())
+      case 'super.broadcast.send':
+        return res.status(200).json(await broadcastSend(await requireSuper(req), body))
+      case 'super.broadcast.log':
+        return res.status(200).json(await broadcastLog(await requireSuper(req), body))
       case 'super.bot.setup':
         await requireSuper(req)
         return res.status(200).json(await setupPlatformBot())

@@ -103,6 +103,7 @@ botIndex/{botId}            qaysi bot qaysi do'konga ulangan (bitta bot — bitt
 tgUsers/{telegramId}        SavdoGO botidagi foydalanuvchi: tasdiqlangan telefon, egasining uid'i
 loginCodes/{sha256}         bir martalik kirish havolalari (10 daqiqa)
 loginRequests/{nonce}       kompyuterdagi «Telegram orqali kirish» so'rovlari (5 daqiqa)
+platformBroadcasts/{id}     /super dan yuborilgan ommaviy xabarlar tarixi (180 kun)
 staffIndex/{uid}            xodim qaysi do'konniki (shopId — faol, shops — hammasi)
 ownerPhones/{998...}        egasining telefoni band — «bitta ega — bitta do'kon»
 shopRequests/{id}           ikkinchi do'kon arizalari (pending → approved → used)

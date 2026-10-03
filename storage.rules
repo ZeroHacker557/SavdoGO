@@ -6,6 +6,7 @@ rules_version = '2';
 //   shops/{shopId}/ads/*        — reklama rasm/videolari
 //   shops/{shopId}/logo-*       — logo (server yuklaydi)
 //   payments/{shopId}/*         — to'lov cheklari (server yuklaydi, hech kim o'qimaydi)
+//   platform/broadcast/*        — SavdoGO botidagi ommaviy xabar rasm/videolari (/super)
 //
 // Rasmlar mijoz saytida ko'rinadi — o'qish ochiq. Yozish faqat shu
 // do'konning admini yoki egasiga (token'dagi shopId claim'i).
@@ -32,6 +33,15 @@ service firebase.storage {
       allow read: if true;
       allow write: if adminOf(shopId)
                    && request.resource.size < 40 * 1024 * 1024
+                   && request.resource.contentType.matches('(image|video)/.*');
+    }
+
+    // /super → «Xabar»: Telegram faylni havoladan o'zi yuklab oladi (rasm 5, video 20 MB gacha)
+    match /platform/broadcast/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.token.get('super', false) == true
+                   && request.resource.size < 20 * 1024 * 1024
                    && request.resource.contentType.matches('(image|video)/.*');
     }
 
