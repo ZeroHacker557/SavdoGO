@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#5b4cf5" />
+    <meta
+      name="description"
+      content="SavdoGO — restoran, kiyim, mebel, gullar va boshqa bizneslar uchun 5 daqiqada tayyor onlayn do‘kon: sayt, savat, buyurtmalar va admin panel."
+    />
+    <title>SavdoGO — biznesingiz uchun tayyor onlayn do‘kon</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon-192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://images.unsplash.com" />
+    <link rel="preconnect" href="https://firebasestorage.googleapis.com" />
+    <!--
+      Telegram SDK faqat do'kon Telegram ichida ochilganda kerak (mini app
+      qo'shimcha xizmati). Telegram ishga tushirish parametrlarini manzilning
+      # qismiga yozadi — shu bo'lsa SDK yuklanadi, aks holda brauzer uni
+      umuman yuklamaydi. src/storefront-entry.tsx uni kutadi.
+    -->
+    <script>
+      (function () {
+        var inTelegram = /tgWebApp/.test(location.hash)
+        try { inTelegram = inTelegram || !!sessionStorage.getItem('__telegram__initParams') } catch (e) {}
+        if (!inTelegram) return
+        var s = document.createElement('script')
+        s.src = 'https://telegram.org/js/telegram-web-app.js'
+        document.head.appendChild(s)
+      })()
+    </script>
+    <style>
+      /* Yuklanish belgisi — ilova tayyor bo'lgach src/main.tsx olib tashlaydi */
+      #boot { position: fixed; inset: 0; z-index: 2147483000; display: grid; place-items: center; background: #f6f6fb; transition: opacity .35s ease; }
+      #boot.is-leaving { opacity: 0; }
+      #boot i { width: 38px; height: 38px; border-radius: 50%; border: 4px solid rgba(91, 76, 245, .18); border-top-color: #5b4cf5; animation: boot-spin .8s linear infinite; }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+      @media (prefers-color-scheme: dark) { #boot.is-dark { background: #0b0d10; } }
+    </style>
+  </head>
+  <body>
+    <div id="boot" aria-hidden="true"><i></i></div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

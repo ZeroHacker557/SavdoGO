@@ -1,0 +1,470 @@
+/* ══════════════════════════════════════════════════════════════
+   30 soniyalik tezkor versiya (Short.tsx) — `ps-` sinflari.
+   promo.css dagi umumiy sinflar (pv-h2, pv-word, a-*, pv-gift...)
+   ham ishlatiladi. Vaqtni main.tsx → seek(t) boshqaradi.
+
+   Telefon hamma sahnada bir joyda turadi: markazi (--cx, --cy),
+   kattaligi --ps. O'tishlar (lime panel → ekran, qorong'i doira,
+   bildirishnoma → admin) shu nuqtaga bog'langan.
+   ══════════════════════════════════════════════════════════════ */
+
+.ps {
+  --cx: 1320px;
+  --cy: 520px;
+  --ps: 1.35;
+  /* SavdoGO yozuvi telefon ekraniga sig'adigan kattalik */
+  --wm-end: 0.29;
+  /* Admin oyna bildirishnoma turgan joydan o'sib chiqadi */
+  --nx: 360px;
+  --ny: -330px;
+  --in: cubic-bezier(0.55, 0, 0.8, 0.2);
+  --io: cubic-bezier(0.65, 0, 0.35, 1);
+}
+.ps .pv-subs { z-index: 200; }
+
+.ps-layer { position: absolute; inset: 0; overflow: hidden; }
+.ps-fill { position: absolute; inset: 0; }
+
+/* Umumiy: chiqib ketish (--d da) */
+.ps-out { animation: psOut 0.35s var(--in) var(--d) forwards; }
+@keyframes psOut { to { opacity: 0; transform: translateY(-40px); filter: blur(10px); } }
+@keyframes psFade { to { opacity: 0; } }
+
+/*
+ * Kesish niqoblari (clip-path) to'g'ridan-to'g'ri emas, ro'yxatdan o'tgan
+ * CSS o'zgaruvchisi orqali animatsiya qilinadi: Chrome clip-path
+ * animatsiyasini kompozitorda bajaradi va kadr olinganda qatlamning hali
+ * chizilmagan bo'laklari qora to'rtburchak bo'lib chiqadi. O'zgaruvchi esa
+ * har kadrda oddiy chizishdan o'tadi.
+ */
+@property --ps-r { syntax: '<length-percentage>'; inherits: false; initial-value: 0px; }
+@property --ps-cut { syntax: '<percentage>'; inherits: false; initial-value: 100%; }
+
+/* Doira bilan ochilish — markazi (--ox, --oy), odatda telefon */
+.ps-wipe {
+  --ox: var(--cx);
+  --oy: var(--cy);
+  clip-path: circle(var(--ps-r) at var(--ox) var(--oy));
+  animation: psWipe 0.5s cubic-bezier(0.3, 0, 0.2, 1) both;
+}
+@keyframes psWipe { to { --ps-r: 2600px; } }
+
+.ps-glow { position: absolute; top: var(--cy); left: var(--cx); width: 1100px; height: 1100px; margin: -550px 0 0 -550px; border-radius: 50%; filter: blur(150px); opacity: 0.32; }
+.ps-glow--in { animation: psGlowIn 0.45s ease both; }
+@keyframes psGlowIn { from { opacity: 0; } }
+
+/* Telefon */
+.ps-phone { position: absolute; top: var(--cy); left: var(--cx); width: 290px; height: 600px; margin: -300px 0 0 -145px; transform: scale(var(--ps)); }
+.ps-phone__body { position: relative; width: 100%; height: 100%; }
+.ps-still .sp-screen, .ps-still .sp-card { animation: none !important; }
+
+/* Matn ustuni (16:9 — chapda, 9:16 — tepada) */
+.ps-copy { position: absolute; top: 150px; left: 130px; width: 960px; }
+.ps-h2 { display: grid; justify-items: start; font-size: 88px; }
+.ps-h2--light { color: #fff; }
+
+/* ── 0–2 s: savol ── */
+.ps-hook {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 56px;
+  padding: 0 120px 40px;
+  animation: psSuck 0.35s var(--in) 1.72s both;
+}
+@keyframes psSuck { to { opacity: 0; transform: scale(0.5); filter: blur(18px); } }
+.ps-hook__title {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 0.28em;
+  max-width: 1640px;
+  margin: 0;
+  font-family: var(--display);
+  font-size: 150px;
+  font-weight: 700;
+  line-height: 1.04;
+  letter-spacing: -0.045em;
+  text-align: center;
+  color: #fff;
+}
+.ps-slam { display: inline-block; animation: psSlam 0.42s cubic-bezier(0.2, 1.5, 0.4, 1) var(--d) both; }
+@keyframes psSlam { from { opacity: 0; transform: translateY(-0.45em) scale(1.8); filter: blur(14px); } }
+.ps-hook__hot {
+  color: var(--lime);
+  text-shadow: 0 0 70px rgb(198 244 50 / 0.55);
+  /* silkinish — to'ldirishsiz, aks holda kirish animatsiyasini bosib qo'yadi */
+  animation: psSlam 0.42s cubic-bezier(0.2, 1.5, 0.4, 1) var(--d) both, psShake 0.45s ease-in-out calc(var(--d) + 0.34s);
+}
+@keyframes psShake {
+  20% { transform: translateX(-16px) rotate(-3deg); }
+  40% { transform: translateX(13px) rotate(2deg); }
+  60% { transform: translateX(-8px) rotate(-1deg); }
+  80% { transform: translateX(4px); }
+}
+.ps-hook__pains { display: flex; flex-wrap: wrap; justify-content: center; gap: 22px; }
+.ps-pain {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 32px 12px 12px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.16);
+  font-size: 36px;
+  font-weight: 800;
+  color: #fff;
+}
+.ps-pain > span { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; background: #e5484d; box-shadow: 0 10px 26px -8px rgb(229 72 77 / 0.8); }
+
+/* ── 2–4 s: lime doira → SavdoGO → telefon ekrani ── */
+/*
+ * Doira — alohida dumaloq element (clip-path emas): Chrome kesilgan
+ * lime panelni butunlay shaffofmas deb hisoblab, ostidagi qatlamlarni
+ * chizmay qo'yadi va doiradan tashqarida qora to'rtburchaklar chiqadi.
+ * Panelning o'z foni doira ekranni to'liq qoplagach yoqiladi.
+ */
+.ps-brand__burst {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3600px;
+  height: 3600px;
+  margin: -1800px 0 0 -1800px;
+  border-radius: 50%;
+  background: var(--lime);
+  animation: psBurst 0.38s cubic-bezier(0.3, 0, 0.2, 1) 0.05s both, psFade 0.01s linear 1.79s forwards;
+}
+@keyframes psBurst { from { transform: scale(0); } }
+.ps-brand__panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  animation:
+    psLime 0.01s linear 0.43s both,
+    psToScreen 0.65s var(--io) 1.8s both,
+    psFade 0.3s ease 2.45s both;
+}
+@keyframes psLime { from { background-color: transparent; } to { background-color: var(--lime); } }
+@keyframes psToScreen {
+  to {
+    top: calc(var(--cy) - 290px * var(--ps));
+    left: calc(var(--cx) - 135px * var(--ps));
+    width: calc(270px * var(--ps));
+    height: calc(580px * var(--ps));
+    border-radius: calc(28px * var(--ps));
+  }
+}
+.ps-brand__logo { display: grid; justify-items: center; gap: 26px; animation: psShrink 0.65s var(--io) 1.8s both; }
+@keyframes psShrink { to { transform: scale(var(--wm-end)); } }
+.ps-brand .pv-word { color: var(--ink); }
+.ps-brand .pv-word__go { background: var(--ink); color: var(--lime); box-shadow: 0 24px 60px -20px rgb(13 15 36 / 0.6); }
+.ps-brand__tag { margin: 0; font-size: 48px; font-weight: 800; color: var(--lime-ink); animation: pvRise 0.8s var(--out) 0.85s both, psFade 0.2s ease 1.75s forwards; }
+
+/* ── 4–8 s: do'kon yig'iladi ── */
+.ps-token {
+  position: absolute;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 30px 14px 14px;
+  border-radius: 26px;
+  background: #fff;
+  box-shadow: 0 24px 50px -16px rgb(13 15 36 / 0.35);
+  font-size: 34px;
+  font-weight: 800;
+  white-space: nowrap;
+  animation: psToken 1.05s cubic-bezier(0.45, 0, 0.2, 1) var(--delay) both;
+}
+.ps-token > span { display: grid; place-items: center; width: 60px; height: 60px; border-radius: 18px; background: #7c3aed; color: #fff; }
+.ps-token--1 { top: 450px; left: 130px; --tx: 980px; --ty: 30px; }
+.ps-token--2 { top: 560px; left: 130px; --tx: 1000px; --ty: -80px; }
+.ps-token--3 { top: 670px; left: 130px; --tx: 990px; --ty: -190px; }
+.ps-token--4 { top: 780px; left: 130px; --tx: 960px; --ty: -300px; }
+@keyframes psToken {
+  0% { opacity: 0; transform: translateX(-70px) scale(0.7); }
+  22% { opacity: 1; transform: none; }
+  52% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.25); }
+}
+.ps-ready {
+  position: absolute;
+  top: 64px;
+  right: -64px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px 9px 11px;
+  border-radius: 999px;
+  background: var(--lime);
+  box-shadow: 0 12px 26px -8px rgb(132 168 20 / 0.8);
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--lime-ink);
+  animation: pvPop 0.7s var(--spring) 3.6s both, psOut 0.3s var(--in) 4.15s forwards;
+}
+
+/* ── 8–12 s: biznes turlari almashadi ── */
+.ps-swap .ps-phone { clip-path: inset(var(--ps-cut) -30% -30% -30%); animation: psWipeUp 0.32s var(--io) both; }
+@keyframes psWipeUp { from { --ps-cut: 100%; } to { --ps-cut: -30%; } }
+.ps-swap .ps-phone__body { animation: psBump 0.4s var(--out) both; }
+@keyframes psBump { from { transform: scale(1.035); } }
+.ps-typechip {
+  position: absolute;
+  top: 420px;
+  left: 130px;
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 36px 12px 12px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.12);
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.2);
+  font-size: 44px;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+  animation: psSlotIn 0.3s var(--out) both, psSlotOut 0.2s ease-in var(--out-at, 99s) forwards;
+}
+.ps-typechip > span { display: grid; place-items: center; width: 66px; height: 66px; border-radius: 50%; }
+@keyframes psSlotIn { from { opacity: 0; transform: translateY(56px); filter: blur(8px); } }
+@keyframes psSlotOut { to { opacity: 0; transform: translateY(-56px); filter: blur(8px); } }
+.ps-badge { position: absolute; top: 560px; left: 130px; }
+.ps-badge > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 32px;
+  border-radius: 999px;
+  background: var(--lime);
+  box-shadow: 0 0 60px rgb(198 244 50 / 0.45);
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--lime-ink);
+}
+
+/* ── 12–16 s: mijoz — kamera yaqinlashadi ── */
+.ps-push .ps-phone__body { transform-origin: 50% 45%; animation: psPush 3.6s cubic-bezier(0.33, 0, 0.2, 1) 0.2s both; }
+@keyframes psPush { to { transform: perspective(1600px) rotateY(-9deg) rotateX(3deg) scale(1.08); } }
+.ps-feats { position: absolute; inset: 0; z-index: 5; }
+.ps-feat {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 30px 14px 14px;
+  border-radius: 26px;
+  background: #fff;
+  box-shadow: 0 24px 50px -18px rgb(13 15 36 / 0.3), inset 0 0 0 2px #f0e7e3;
+  font-size: 32px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.ps-feat > span { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 18px; background: #e4572e; color: #fff; }
+.ps-feat--1 { top: 460px; left: 130px; }
+.ps-feat--2 { top: 460px; left: 590px; }
+.ps-feat--3 { top: 580px; left: 130px; }
+.ps-feat--4 { top: 580px; left: 590px; }
+.ps-notify {
+  position: absolute;
+  top: 40px;
+  right: 12px;
+  left: 12px;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px 9px 9px;
+  border-radius: 16px;
+  background: rgb(255 255 255 / 0.97);
+  box-shadow: 0 16px 34px -10px rgb(13 15 36 / 0.5);
+  animation: pvNotify 0.6s var(--spring) var(--d) both, psNotifyGo 0.35s var(--in) calc(var(--d) + 0.9s) forwards;
+}
+@keyframes psNotifyGo { to { opacity: 0; transform: translateY(40px) scale(1.7); } }
+.ps-notify__icon { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 10px; background: #e4572e; color: #fff; }
+.ps-notify small { display: block; font-size: 9.5px; font-weight: 700; color: #666a88; }
+.ps-notify b { display: block; font-size: 11.5px; white-space: nowrap; }
+
+/* ── 16–20 s: admin panel ── */
+.ps-wipe--notify { position: absolute; inset: 0; --oy: calc(var(--cy) - 255px * var(--ps)); animation-duration: 0.45s; }
+.ps-zoomout { position: absolute; inset: 0; animation: psZoomOut 0.5s var(--in) var(--d) forwards; }
+@keyframes psZoomOut { to { opacity: 0; transform: scale(2.6); filter: blur(18px); } }
+.ps-admin { position: absolute; inset: 0; display: grid; place-items: center; }
+.ps .ps-window { width: 1400px; height: 700px; margin: 40px 0 0; animation: psFromCard 0.6s var(--spring) 0.05s both; }
+@keyframes psFromCard {
+  from { opacity: 0; transform: translate(var(--nx), var(--ny)) scale(0.2); }
+  35% { opacity: 1; }
+}
+.ps-label {
+  position: absolute;
+  top: 74px;
+  left: 260px;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 28px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+  box-shadow: inset 0 0 0 2px rgb(198 244 50 / 0.45);
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--lime);
+}
+.ps-tg .pv-toast__icon { background: #2aabee; }
+.ps-courier {
+  position: absolute;
+  bottom: 170px;
+  left: 210px;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 30px 12px 12px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 30px 60px -18px rgb(0 0 0 / 0.6);
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.ps-courier > span { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: #2aabee; color: #fff; }
+
+/* ── 20–24 s: 10 kun bepul ── */
+.ps-zoomin { position: absolute; inset: 0; animation: psZoomIn 0.45s var(--out) both; }
+@keyframes psZoomIn { from { opacity: 0; transform: scale(0.55); filter: blur(16px); } }
+
+/* ── 24–26 s: narx ── */
+.ps-whip { animation: psWhip 0.42s var(--out) both; }
+@keyframes psWhip { from { transform: translateY(100%); } }
+.ps-price__title { position: absolute; top: 140px; right: 0; left: 0; text-align: center; }
+.ps-plan {
+  position: absolute;
+  top: 330px;
+  left: 50%;
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  width: 700px;
+  margin-left: -350px;
+  padding: 48px 46px 46px;
+  border-radius: 40px;
+  background: var(--grad);
+  box-shadow: 0 40px 90px -30px rgb(91 76 245 / 0.75);
+  color: #fff;
+  text-align: center;
+  animation: pvCard 0.9s var(--spring) 0.3s both, psCover 0.4s var(--in) 2.0s forwards;
+}
+.ps-plan > * { animation: psFade 0.15s ease 2.0s forwards; }
+@keyframes psCover { to { transform: scale(7); border-radius: 0; box-shadow: none; } }
+.ps-plan__kicker { padding: 10px 24px; border-radius: 999px; background: rgb(255 255 255 / 0.18); font-size: 24px; font-weight: 800; }
+.ps-plan__price { display: grid; justify-items: center; font-family: var(--display); }
+.ps-plan__price b { font-size: 108px; letter-spacing: -0.05em; line-height: 1; white-space: nowrap; }
+.ps-plan__price small { margin-top: 8px; font-family: var(--sans); font-size: 30px; font-weight: 700; color: rgb(255 255 255 / 0.85); }
+.ps-plan__note { display: inline-flex; align-items: center; gap: 10px; font-size: 28px; font-weight: 800; color: var(--lime); }
+.ps-plan__btn { display: inline-flex; align-items: center; gap: 12px; margin-top: 8px; padding: 20px 40px; border-radius: 999px; background: var(--lime); font-size: 30px; font-weight: 800; color: var(--lime-ink); }
+.ps-mini { position: absolute; top: 420px; width: 420px; }
+.ps-mini--a { left: 140px; }
+.ps-mini--b { right: 140px; }
+.ps-mini > div { display: grid; gap: 6px; padding: 34px 36px; border-radius: 32px; background: #fff; box-shadow: 0 30px 80px -30px rgb(13 15 36 / 0.3), inset 0 0 0 2px #e6e7f1; }
+.ps-mini small { font-size: 24px; font-weight: 700; color: #666a88; }
+.ps-mini b { font-family: var(--display); font-size: 48px; letter-spacing: -0.03em; white-space: nowrap; }
+
+/* ── 26–30 s: yakun ── */
+.ps-cta__melt { position: absolute; inset: 0; background: var(--grad); animation: psFade 0.6s ease 0.08s both; }
+.ps-cta__col { animation: psDrift 4.1s linear both; }
+@keyframes psDrift { from { transform: scale(0.97); } to { transform: scale(1.05); } }
+.ps-cta .pv-cta__btn::after { animation-delay: 2.2s; }
+
+/* ══════════════════════════════════════════════════════════════
+   9:16 — 1080×1920. Tepada ~230px va pastda ~330px platforma
+   tugmalari uchun bo'sh qoladi.
+   ══════════════════════════════════════════════════════════════ */
+.ps--v {
+  width: 1080px;
+  height: 1920px;
+  --cx: 540px;
+  --cy: 950px;
+  --ps: 1.64;
+  --wm-end: 0.48;
+  --nx: 0px;
+  --ny: -380px;
+}
+.ps--v .pv-subs { bottom: 330px; }
+.ps--v .pv-sub { max-width: 960px; padding: 16px 30px 18px; font-size: 42px; }
+.ps--v .pv-word--xl { font-size: 150px; }
+.ps--v .pv-orb--a { left: -320px; }
+.ps--v .pv-orb--b { right: -380px; bottom: -160px; }
+
+.ps--v .ps-copy { top: 230px; right: 40px; left: 40px; width: auto; text-align: center; }
+.ps--v .ps-h2 { justify-items: center; font-size: 76px; }
+
+.ps--v .ps-hook { gap: 60px; padding: 0 40px 160px; }
+.ps--v .ps-hook__title { max-width: 920px; font-size: 128px; }
+.ps--v .ps-pain { gap: 10px; padding-right: 24px; font-size: 30px; }
+.ps--v .ps-pain > span { width: 46px; height: 46px; }
+
+.ps--v .ps-token { font-size: 28px; }
+.ps--v .ps-token > span { width: 50px; height: 50px; }
+.ps--v .ps-token--1 { top: 560px; left: 30px; --tx: 330px; --ty: 380px; }
+.ps--v .ps-token--2 { top: 800px; right: 30px; left: auto; --tx: -330px; --ty: 140px; }
+.ps--v .ps-token--3 { top: 1040px; left: 30px; --tx: 330px; --ty: -100px; }
+.ps--v .ps-token--4 { top: 1280px; right: 30px; left: auto; --tx: -330px; --ty: -340px; }
+
+.ps--v .ps-typechip { top: 1300px; left: 50%; z-index: 5; translate: -50% 0; background: rgb(11 12 30 / 0.9); box-shadow: 0 24px 50px -16px rgb(0 0 0 / 0.6), inset 0 0 0 2px rgb(255 255 255 / 0.18); font-size: 38px; }
+.ps--v .ps-typechip > span { width: 58px; height: 58px; }
+.ps--v .ps-badge { top: 420px; right: 40px; left: auto; }
+.ps--v .ps-badge > span { padding: 14px 26px; font-size: 28px; }
+
+.ps--v .ps-feat { font-size: 27px; }
+.ps--v .ps-feat > span { width: 50px; height: 50px; }
+.ps--v .ps-feat--1 { top: 560px; left: 24px; }
+.ps--v .ps-feat--2 { top: 780px; right: 24px; left: auto; }
+.ps--v .ps-feat--3 { top: 1100px; left: 24px; }
+.ps--v .ps-feat--4 { top: 1320px; right: 24px; left: auto; }
+
+.ps--v .ps-window { width: 960px; height: 960px; margin: -10px 0 0; }
+.ps--v .pv-order:nth-child(3) { display: none; }
+.ps--v .pv-window__body { grid-template-columns: 1fr; }
+.ps--v .pv-side { display: none; }
+.ps--v .pv-dash { gap: 22px; padding: 28px; }
+.ps--v .pv-dash__stats { grid-template-columns: 1fr 1fr; gap: 18px; }
+.ps--v .pv-stat:first-child { grid-column: 1 / -1; }
+.ps--v .pv-stat:first-child b { font-size: 54px; }
+.ps--v .pv-dash__row { grid-template-columns: 1fr; gap: 18px; }
+.ps--v .pv-chart__bars { height: 200px; }
+.ps--v .ps-label { top: 240px; left: 50%; translate: -50% 0; white-space: nowrap; font-size: 28px; }
+.ps--v .pv-toast { top: 380px; right: auto; left: 50%; translate: -50% 0; white-space: nowrap; }
+.ps--v .ps-courier { top: 1385px; bottom: auto; left: 50%; translate: -50% 0; white-space: nowrap; font-size: 28px; }
+
+.ps--v .pv-trial__kicker { top: 250px; }
+.ps--v .pv-rays--lime, .ps--v .pv-trial__glow { top: 34%; }
+.ps--v .pv-trial__stage { top: 360px; height: 600px; }
+.ps--v .pv-trial__big { flex-direction: column; gap: 6px; }
+.ps--v .pv-trial__big b { font-size: 360px; }
+.ps--v .pv-trial__big span { display: flex; align-items: baseline; gap: 0.3em; font-size: 104px; }
+.ps--v .pv-trial__big em { font-size: 124px; }
+.ps--v .pv-days { top: 1010px; gap: 14px; }
+.ps--v .pv-perks { top: 1120px; flex-wrap: wrap; gap: 18px 20px; padding: 0 60px; }
+.ps--v .pv-perk { font-size: 28px; }
+
+.ps--v .ps-price__title { top: 240px; padding: 0 40px; font-size: 76px; }
+.ps--v .ps-plan { top: 520px; width: 880px; margin-left: -440px; }
+.ps--v .ps-plan__price b { font-size: 140px; }
+.ps--v .ps-mini { top: 1130px; width: 470px; }
+.ps--v .ps-mini--a { left: 60px; }
+.ps--v .ps-mini--b { right: 60px; }
+.ps--v .ps-mini > div { padding: 26px 28px; }
+.ps--v .ps-mini b { font-size: 46px; }
+
+.ps--v .pv-cta__col { gap: 40px; padding: 0 60px 220px; }
+.ps--v .pv-cta__url { font-size: 54px; }
+.ps--v .pv-cta__btn { padding: 28px 46px; font-size: 42px; }
+.ps--v .pv-cta__tag { max-width: 900px; font-size: 30px; line-height: 1.4; }

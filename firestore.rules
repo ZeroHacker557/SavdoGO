@@ -1,0 +1,244 @@
+rules_version = '2';
+
+// SavdoGO — Firestore xavfsizlik qoidalari (ko'p do'konli)
+//
+// Tuzilma:
+//   shops/{shopId}                 — do'konning ommaviy hujjati
+//   shops/{shopId}/<kolleksiya>    — katalog, buyurtmalar, mijozlar, xodimlar...
+//   shopPrivate/{shopId}           — egasining maxfiy ma'lumoti
+//   shopSecrets/{shopId}           — Telegram bot tokeni (hech kim o'qimaydi)
+//   staffIndex/{uid}               — xodim qaysi do'konniki
+//   payments/{id}                  — obuna to'lovlari
+//   platform/settings              — platforma kartasi
+//   domains/{host}                 — o'z domeni → shopId
+//
+// Asosiy tamoyillar:
+//   1. Mijoz brauzeri pul bilan bog'liq hech narsani yoza olmaydi —
+//      buyurtma, promokod, holat, to'lov faqat server (Admin SDK) orqali.
+//   2. Xodim FAQAT o'z do'konini ko'radi: token'dagi `shopId` claim'i
+//      va do'kon ichidagi `staff/{uid}` hujjati birga tekshiriladi.
+//   3. Mijoz faqat o'zinikini ko'radi (`uid` maydoni).
+//
+// Admin SDK (/api/*) bu qoidalarni chetlab o'tadi.
+// Deploy: firebase deploy --only firestore:rules
+// yoki Firebase Console → Firestore → Rules ga nusxalang.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function claim(name, fallback) {
+      return request.auth.token.get(name, fallback);
+    }
+
+    // Xodim: token shu do'konga tegishli VA do'kon ichida faol hujjati bor.
+    // Hujjat tekshiruvi — xodim o'chirilsa yoki bloklansa darhol kuchga
+    // kiradi (token muddati tugashini kutmaydi).
+    function isStaffOf(shopId) {
+      return signedIn()
+        && claim('shopId', '') == shopId
+        && claim('role', '') in ['owner', 'admin', 'courier']
+        && exists(/databases/$(database)/documents/shops/$(shopId)/staff/$(request.auth.uid))
+        && get(/databases/$(database)/documents/shops/$(shopId)/staff/$(request.auth.uid)).data.get('active', true) != false;
+    }
+
+    function isAdminOf(shopId) {
+      return isStaffOf(shopId) && claim('role', '') in ['owner', 'admin'];
+    }
+
+    function isOwnerOf(shopId) {
+      return isStaffOf(shopId) && claim('role', '') == 'owner';
+    }
+
+    // Platforma egasi — `super: true` claim'i (scripts/create-super.mjs)
+    function isSuper() {
+      return signedIn() && claim('super', false) == true;
+    }
+
+    function mine(data) {
+      return signedIn() && data.get('uid', '') == request.auth.uid;
+    }
+
+    // ══ Do'kon ═══════════════════════════════════════════════
+    match /shops/{shopId} {
+      // Nomi, logo, ranglar, aloqa — sayt shu bilan chiziladi.
+      // Maxfiy narsa yo'q (bot tokeni shopSecrets'da).
+      allow read: if true;
+      allow write: if false;
+
+      // ── Katalog: hamma o'qiydi, yozish — /api/admin/action ──
+      match /products/{id} {
+        allow read: if true;
+        allow write: if false;
+      }
+      match /categories/{id} {
+        allow read: if true;
+        allow write: if false;
+      }
+      match /sections/{id} {
+        allow read: if true;
+        allow write: if false;
+      }
+      match /promotions/{id} {
+        allow read: if true;
+        allow write: if false;
+      }
+      match /ads/{id} {
+        allow read: if true;
+        allow write: if false;
+      }
+      match /reviews/{id} {
+        allow read: if true;
+        allow write: if false;   // /api/reviews (sotib olganini tekshiradi)
+      }
+
+      // ── Mijoz profili: faqat o'zinikini ──
+      // Brauzer mijozi (anonim hisob) profilini o'zi yaratadi: manzillar,
+      // til, savat. Pulga aloqador maydon yo'q — narx serverda hisoblanadi.
+      match /users/{uid} {
+        allow read: if (signedIn() && request.auth.uid == uid) || isAdminOf(shopId);
+        allow create: if signedIn() && request.auth.uid == uid
+                      && request.resource.data.keys().hasOnly(
+                           ['uid', 'name', 'phone', 'addresses', 'language', 'cart', 'cartUpdatedAt']);
+        allow update: if signedIn() && request.auth.uid == uid
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+                           ['name', 'first_name', 'last_name', 'phone', 'addresses', 'language', 'cart', 'cartUpdatedAt']);
+        allow delete: if false;
+      }
+
+      // ── Buyurtmalar: yozish faqat server ──
+      match /orders/{orderId} {
+        allow read: if mine(resource.data)
+                    || isAdminOf(shopId)
+                    || (isStaffOf(shopId) && resource.data.get('courierId', '') == request.auth.uid);
+        allow write: if false;
+
+        match /history/{entryId} {
+          allow read: if isStaffOf(shopId);
+          allow write: if false;
+        }
+      }
+
+      // Telegram xabarlari hisobi — faqat xodimga
+      match /dispatch/{orderId} {
+        allow read: if isStaffOf(shopId);
+        allow write: if false;
+      }
+
+      // Bildirishnomalar — faqat o'zinikini, faqat «o'qildi» belgisini o'zgartiradi
+      match /notifications/{id} {
+        allow read: if mine(resource.data);
+        allow update: if mine(resource.data)
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+        allow create, delete: if false;
+      }
+
+      // «Kuryer qayerda» — mijoz faqat o'z buyurtmasini
+      match /order_tracking/{orderId} {
+        allow read: if isAdminOf(shopId) || mine(resource.data);
+        allow write: if false;
+      }
+
+      // Promokodlar — mijoz ro'yxatni ko'rmaydi (/api/promo tekshiradi)
+      match /promocodes/{id} {
+        allow read: if isAdminOf(shopId);
+        allow write: if false;
+      }
+
+      // Sozlamalar: karta va yetkazish narxi checkout'da ko'rinadi;
+      // kuryer guruhi va boshqalari — faqat xodimga
+      match /settings/{docId} {
+        allow read: if docId in ['payment', 'delivery'] || isStaffOf(shopId);
+        allow write: if false;
+      }
+
+      // Xodimlar: har xodim o'zinikini, admin/ega hammasini
+      match /staff/{uid} {
+        allow read: if isAdminOf(shopId) || (isStaffOf(shopId) && request.auth.uid == uid);
+        allow write: if false;
+      }
+
+      // Kuryer ↔ admin chati. Kuryer Telegram orqali kiradi (uid = Telegram id)
+      match /support_threads/{threadId} {
+        allow read: if isAdminOf(shopId)
+                    || (signedIn() && resource.data.get('courierTg', 0) == int(request.auth.uid));
+        allow write: if false;
+
+        match /messages/{messageId} {
+          allow read: if isAdminOf(shopId)
+                      || (signedIn() && get(/databases/$(database)/documents/shops/$(shopId)/support_threads/$(threadId)).data.get('courierTg', 0) == int(request.auth.uid));
+          allow write: if false;
+        }
+      }
+
+      // «Buyurtmalar o'zgardi» belgisi — ichida faqat vaqt
+      match /signals/{id} {
+        allow read: if signedIn();
+        allow write: if false;
+      }
+
+      match /cash_handovers/{id} {
+        allow read: if isAdminOf(shopId);
+        allow write: if false;
+      }
+
+      match /courier_locations/{id} {
+        allow read: if isAdminOf(shopId);
+        allow write: if false;
+      }
+
+      match /analytics/{document=**} {
+        allow read: if isAdminOf(shopId);
+        allow write: if false;
+      }
+
+      match /counters/{id} {
+        allow read, write: if false;
+      }
+    }
+
+    // ══ Platforma ════════════════════════════════════════════
+
+    match /shopPrivate/{shopId} {
+      allow read: if isOwnerOf(shopId) || isSuper();
+      allow write: if false;
+    }
+
+    // Bot tokenlari — hech qachon brauzerga berilmaydi
+    match /shopSecrets/{shopId} {
+      allow read, write: if false;
+    }
+
+    match /staffIndex/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Obuna to'lovlari: ega o'zinikini, platforma egasi hammasini
+    match /payments/{id} {
+      allow read: if isSuper()
+                  || (signedIn() && claim('role', '') == 'owner' && resource.data.shopId == claim('shopId', ''));
+      allow write: if false;
+    }
+
+    // Platforma kartasi — to'lov sahifasida ko'rinadi
+    match /platform/{docId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // O'z domeni → do'kon: sayt ochilishida o'qiladi
+    match /domains/{host} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Yuqorida sanalmagan hamma narsa yopiq
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,119 @@
+/* Platforma egasi paneli — admin.css ustiga */
+
+.sp-shell { min-height: 100dvh; background: var(--bg); color: var(--ink); }
+
+.sp-mark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #5b4cf5 0%, #8b5cf6 50%, #ec4899 100%);
+  color: #fff;
+  box-shadow: 0 10px 24px -10px #5b4cf5;
+}
+.adm-login .sp-mark { width: 48px; height: 48px; border-radius: 16px; }
+
+.sp-top {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 0.75rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(12px);
+}
+.sp-top__tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #c6f432;
+  color: #1a2e05;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sp-tabs { display: flex; gap: 4px; margin-left: 1rem; }
+.sp-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--muted);
+  transition: background-color 0.2s, color 0.2s;
+}
+.sp-tab:hover { background: var(--surface-2); color: var(--ink); }
+.sp-tab.active { background: var(--brand-soft); color: var(--brand); }
+.sp-tab .adm-nav__badge { position: static; margin-left: 2px; }
+@media (max-width: 720px) {
+  .sp-tabs { order: 5; width: 100%; margin-left: 0; overflow-x: auto; }
+}
+
+.sp-main { max-width: 1400px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+
+.sp-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
+}
+
+.sp-h2 { display: flex; align-items: center; gap: 8px; margin-bottom: 0.9rem; font-size: 1.05rem; font-weight: 800; }
+.sp-h2 span {
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 0.8rem;
+}
+.sp-h3 { font-size: 0.95rem; font-weight: 800; }
+
+.sp-pay-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 0.9rem; }
+.sp-req-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); gap: 0.9rem; }
+@media (max-width: 420px) { .sp-pay-grid { grid-template-columns: 1fr; } }
+.sp-pay { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 1rem; }
+.sp-pay__receipt {
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  border-radius: 14px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.sp-pay__receipt img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
+.sp-pay__receipt:hover img { transform: scale(1.05); }
+
+.sp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.sp-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgb(8 10 14 / 0.82);
+  cursor: zoom-out;
+  animation: admFade 0.2s ease;
+}
+.sp-lightbox img { max-width: 100%; max-height: 100%; border-radius: 12px; box-shadow: 0 30px 80px rgb(0 0 0 / 0.5); }

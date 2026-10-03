@@ -1,0 +1,48 @@
+rules_version = '2';
+
+// SavdoGO — Firebase Storage qoidalari
+//
+//   shops/{shopId}/products/*   — mahsulot rasmlari (admin panel yuklaydi)
+//   shops/{shopId}/ads/*        — reklama rasm/videolari
+//   shops/{shopId}/logo-*       — logo (server yuklaydi)
+//   payments/{shopId}/*         — to'lov cheklari (server yuklaydi, hech kim o'qimaydi)
+//
+// Rasmlar mijoz saytida ko'rinadi — o'qish ochiq. Yozish faqat shu
+// do'konning admini yoki egasiga (token'dagi shopId claim'i).
+// Server (Admin SDK) bu qoidalarni chetlab o'tadi.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function adminOf(shopId) {
+      return request.auth != null
+        && request.auth.token.get('shopId', '') == shopId
+        && request.auth.token.get('role', '') in ['owner', 'admin'];
+    }
+
+    match /shops/{shopId}/products/{fileName} {
+      allow read: if true;
+      allow write: if adminOf(shopId)
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Ochilish reklamasi: rasm va video. Video og'irroq — 40 MB gacha.
+    match /shops/{shopId}/ads/{fileName} {
+      allow read: if true;
+      allow write: if adminOf(shopId)
+                   && request.resource.size < 40 * 1024 * 1024
+                   && request.resource.contentType.matches('(image|video)/.*');
+    }
+
+    // Logo — server yozadi, o'qish ochiq
+    match /shops/{shopId}/{fileName} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

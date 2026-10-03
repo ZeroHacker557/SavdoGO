@@ -1,0 +1,428 @@
+/* ══════════════════════════════════════════════════════════════
+   Telefon ichidagi kichik do'kon (ShopPreview.tsx)
+
+   Faqat `sp-` sinflari. Ranglar tashqaridan inline CSS
+   o'zgaruvchilari bilan keladi (--brand, --bg, --surface...),
+   shuning uchun bir sahifada bir nechta turli rangli telefon
+   yonma-yon tura oladi.
+   ══════════════════════════════════════════════════════════════ */
+
+.sp-phone {
+  --sp-radius: 38px;
+  position: relative;
+  width: 290px;
+  height: 600px;
+  flex: none;
+  padding: 10px;
+  border-radius: var(--sp-radius);
+  background: linear-gradient(145deg, #2a2d34, #0d0f13 60%);
+  box-shadow:
+    inset 0 0 0 1.5px rgb(255 255 255 / 0.08),
+    0 1px 0 1px rgb(0 0 0 / 0.6),
+    0 30px 60px -12px rgb(15 20 40 / 0.45),
+    0 18px 36px -18px rgb(0 0 0 / 0.5);
+  font-family: var(--font-sans);
+  color: var(--ink);
+  text-align: left;
+  user-select: none;
+}
+
+.sp-notch {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  z-index: 3;
+  width: 84px;
+  height: 22px;
+  margin-left: -42px;
+  border-radius: 999px;
+  background: #07080a;
+}
+
+.sp-screen {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  border-radius: calc(var(--sp-radius) - 10px);
+  background: var(--bg);
+  animation: sp-swap 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: background-color 0.4s ease;
+}
+
+@keyframes sp-swap {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); filter: blur(4px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+.sp-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  padding: 10px 20px 0 24px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--tint-top);
+}
+.sp-status__icons { display: flex; gap: 3px; }
+.sp-status__icons i {
+  display: block;
+  width: 12px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--ink);
+  opacity: 0.8;
+}
+.sp-status__icons i:nth-child(1) { width: 10px; }
+.sp-status__icons i:nth-child(3) { width: 16px; border-radius: 3px; }
+
+.sp-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 10px;
+  background: linear-gradient(var(--tint-top), var(--tint-mid));
+}
+
+.sp-logo {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 11px;
+  background: var(--brand);
+  color: var(--brand-ink);
+  box-shadow: var(--shadow-brand);
+}
+.sp-logo img { width: 100%; height: 100%; object-fit: cover; background: #fff; }
+.sp-logo b { font-family: var(--font-display); font-size: 13px; letter-spacing: 0.02em; }
+
+.sp-head__text { display: grid; min-width: 0; flex: 1; line-height: 1.15; }
+.sp-head__text b {
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 14px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.sp-head__text small {
+  overflow: hidden;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--brand);
+}
+
+.sp-head__icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.7);
+  color: var(--ink-2);
+}
+.sp-head__icon em {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--danger, #e5484d);
+}
+
+.sp-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 12px;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 10.5px;
+  color: var(--faint);
+}
+
+.sp-hero {
+  position: relative;
+  height: 118px;
+  margin: 10px 12px 0;
+  overflow: hidden;
+  border-radius: 16px;
+  background-size: cover;
+  background-position: center;
+}
+.sp-hero__shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, color-mix(in srgb, var(--brand) 88%, black) 0%, color-mix(in srgb, var(--brand) 55%, transparent) 55%, transparent 100%);
+}
+.sp-hero__text {
+  position: relative;
+  display: grid;
+  align-content: end;
+  justify-items: start;
+  gap: 8px;
+  height: 100%;
+  max-width: 72%;
+  padding: 12px;
+  color: #fff;
+}
+.sp-hero__text b {
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  line-height: 1.15;
+  text-shadow: 0 1px 8px rgb(0 0 0 / 0.25);
+}
+.sp-hero__btn {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 9.5px;
+  font-weight: 800;
+  color: var(--brand-strong);
+}
+
+.sp-chips {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.sp-chips span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.sp-chips .is-active {
+  background: var(--brand);
+  box-shadow: var(--shadow-brand);
+  color: var(--brand-ink);
+}
+
+.sp-section {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 12px 12px 6px;
+}
+.sp-section b { font-family: var(--font-display); font-size: 13px; }
+.sp-section span { font-size: 9.5px; font-weight: 700; color: var(--brand); }
+
+.sp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.sp-card {
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px rgb(0 0 0 / 0.05);
+  animation: sp-card-in 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(0.08s * var(--i, 0) + 0.12s);
+}
+@keyframes sp-card-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+.sp-card__img {
+  position: relative;
+  aspect-ratio: 1 / 0.82;
+  overflow: hidden;
+  background: var(--surface-3);
+}
+.sp-card__img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sp-card__badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--gold-bright);
+  font-size: 8.5px;
+  font-style: normal;
+  font-weight: 800;
+  color: var(--pill-ink);
+}
+.sp-card__like {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.85);
+  color: var(--ink-2);
+}
+
+.sp-card__body { display: grid; gap: 2px; padding: 7px 8px 8px; }
+.sp-card__name {
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.sp-card__rate {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 8.5px;
+  font-weight: 700;
+  color: var(--gold);
+}
+.sp-card__row { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-top: 2px; }
+.sp-card__row b { font-size: 10px; white-space: nowrap; color: var(--ink); }
+.sp-card__add {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 7px;
+  background: var(--brand);
+  color: var(--brand-ink);
+}
+
+.sp-nav {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  height: 46px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12), inset 0 0 0 1px var(--line);
+  backdrop-filter: blur(10px);
+  color: var(--faint);
+}
+.sp-nav span { position: relative; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 11px; }
+.sp-nav .is-active { background: var(--brand-soft); color: var(--brand); }
+.sp-nav__cart {
+  width: 38px !important;
+  height: 38px !important;
+  margin-top: -18px;
+  border-radius: 14px !important;
+  background: var(--brand);
+  box-shadow: var(--shadow-brand);
+  color: var(--brand-ink);
+}
+.sp-nav__cart em {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--gold-bright);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 800;
+  color: var(--pill-ink);
+}
+
+/* ══════════ «O'z-o'zidan yig'iladigan do'kon» (landing hero) ══════════
+   Bo'sh ramka → bo'laklar havodan tushib joyiga o'tiradi. Vaqtlar
+   landingdagi bo'laklar (Hero.tsx) va qadamlar ro'yxati bilan bir xil:
+   logo ~1.0s, banner ~1.7s, mahsulotlar ~2.4s, menyu ~3.1s. */
+.sp-asm .sp-screen { animation: none; }
+/* Chizma: bo'laklar tushguncha ekranda nozik to'r */
+.sp-asm .sp-screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: radial-gradient(color-mix(in srgb, var(--brand) 35%, transparent) 1px, transparent 1.4px);
+  background-size: 14px 14px;
+  animation: asmGrid 3.4s ease both;
+  pointer-events: none;
+}
+.sp-asm .sp-screen > * { position: relative; z-index: 1; }
+.sp-asm .sp-nav { position: absolute; }
+
+.sp-asm .sp-status { animation: asmFade 0.4s ease 0.1s both; }
+.sp-asm .sp-logo { animation: asmPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.95s both; }
+.sp-asm .sp-head__text b { animation: asmType 0.55s steps(14, end) 1.05s both; }
+.sp-asm .sp-head__text small { animation: asmFade 0.4s ease 1.35s both; }
+.sp-asm .sp-head__icon { animation: asmPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1.4s both; }
+.sp-asm .sp-head { animation: asmFadeBg 0.6s ease 0.9s both; }
+.sp-asm .sp-search { animation: asmDrop 0.6s cubic-bezier(0.22, 1, 0.36, 1) 1.25s both; }
+.sp-asm .sp-hero { animation: asmReveal 0.9s cubic-bezier(0.22, 1, 0.36, 1) 1.6s both; }
+.sp-asm .sp-hero__text { animation: asmDrop 0.6s cubic-bezier(0.22, 1, 0.36, 1) 1.95s both; }
+.sp-asm .sp-chips span { animation: asmPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.sp-asm .sp-chips span:nth-child(1) { animation-delay: 2.25s; }
+.sp-asm .sp-chips span:nth-child(2) { animation-delay: 2.32s; }
+.sp-asm .sp-chips span:nth-child(3) { animation-delay: 2.39s; }
+.sp-asm .sp-chips span:nth-child(4) { animation-delay: 2.46s; }
+.sp-asm .sp-chips span:nth-child(5) { animation-delay: 2.53s; }
+.sp-asm .sp-section { animation: asmFade 0.4s ease 2.4s both; }
+.sp-asm .sp-card { animation: asmDrop 0.7s cubic-bezier(0.34, 1.4, 0.64, 1) both; animation-delay: calc(2.45s + var(--i, 0) * 0.12s); }
+.sp-asm .sp-nav { animation: asmRise 0.65s cubic-bezier(0.34, 1.4, 0.64, 1) 3.1s both; }
+.sp-asm .sp-nav__cart em { animation: asmPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 3.65s both; }
+
+@keyframes asmGrid { 0%, 55% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes asmFade { from { opacity: 0; } }
+@keyframes asmFadeBg { from { background: transparent; } }
+@keyframes asmPop {
+  0% { opacity: 0; transform: scale(0.3) rotate(-14deg); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes asmDrop {
+  0% { opacity: 0; transform: translateY(-28px) rotate(-2.5deg) scale(1.04); filter: blur(5px); }
+  55% { opacity: 1; filter: none; }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes asmReveal {
+  0% { opacity: 0; transform: scale(0.86); filter: blur(14px) saturate(0.3); }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+@keyframes asmRise {
+  0% { opacity: 0; transform: translateY(46px); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes asmType {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+/* Sochilish: bo'laklar har tomonga uchib ketadi */
+.sp-asm.is-leaving .sp-screen > * { animation: asmOut 0.55s cubic-bezier(0.5, 0, 0.75, 0) both !important; }
+.sp-asm.is-leaving .sp-screen > :nth-child(odd) { --ox: -26px; --or: -7deg; }
+.sp-asm.is-leaving .sp-screen > :nth-child(even) { --ox: 26px; --or: 7deg; }
+.sp-asm.is-leaving .sp-screen > :nth-child(3n) { animation-delay: 0.06s !important; }
+.sp-asm.is-leaving .sp-screen > :nth-child(3n + 1) { animation-delay: 0.12s !important; }
+@keyframes asmOut {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translate(var(--ox, 0), 40px) rotate(var(--or, 0)) scale(0.9); filter: blur(4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-screen, .sp-card { animation: none; }
+  .sp-asm *, .sp-asm .sp-screen::before { animation: none !important; }
+  .sp-asm .sp-screen::before { opacity: 0; }
+}
