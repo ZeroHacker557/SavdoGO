@@ -77,7 +77,7 @@ Firebase Console → **Authentication → Settings → Authorized domains** ga
 2. `/super` → **Sozlamalar** → **Botni sozlash**: webhook
    (`/api/telegram?platform=1`), buyruqlar va tavsif o'rnatiladi.
 3. Botga `/start` yozib tekshiring. `/id` — sizning chat ID (`PLATFORM_CHAT_ID`).
-4. Bot username'ini [`src/platform/plans.ts`](src/platform/plans.ts) → `PLATFORM.botUsername`
+4. Bot username'i (hozir `savdogouz_bot`) [`src/platform/plans.ts`](src/platform/plans.ts) → `PLATFORM.botUsername`
    ga yozing — landingda «Telegram orqali» tugmasi paydo bo'ladi.
 
 ### Do'konning o'z boti — «Telegram va kuryerlar» (bepul)

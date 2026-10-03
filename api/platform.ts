@@ -4,7 +4,9 @@ import { requireStaff } from './_lib/admin-auth.js'
 import { PlatformError, shopCreate, slugCheck } from './_lib/platform/shops.js'
 import { DraftError } from './_lib/platform/draft.js'
 import { billingStatus, billingSubmit } from './_lib/platform/billing.js'
-import { paymentApprove, paymentReject, requireSuper, settingsSave, shopUpdate, superOverview } from './_lib/platform/super.js'
+import {
+  paymentApprove, paymentReject, requireSuper, settingsSave, shopDelete, shopUpdate, superOverview,
+} from './_lib/platform/super.js'
 import {
   inviteCheck, ownerOverview, requestApprove, requestCancel, requestReject, requestSubmit, switchShop,
 } from './_lib/platform/owners.js'
@@ -32,7 +34,7 @@ type Body = Record<string, unknown>
  *
  *   Platforma egasi (`super: true` claim):
  *     super.overview, super.payment.approve, super.payment.reject,
- *     super.shop.update, super.settings.save,
+ *     super.shop.update, super.shop.delete, super.settings.save,
  *     super.request.approve, super.request.reject,
  *     super.bot.setup   — SavdoGO boti webhook'i va tavsifi
  *
@@ -98,6 +100,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(200).json(await paymentReject(await requireSuper(req), body))
       case 'super.shop.update':
         return res.status(200).json(await shopUpdate(await requireSuper(req), body))
+      case 'super.shop.delete':
+        return res.status(200).json(await shopDelete(await requireSuper(req), body))
       case 'super.settings.save':
         return res.status(200).json(await settingsSave(await requireSuper(req), body))
       case 'super.request.approve':

@@ -4,8 +4,11 @@
  * O'chiriladi: shops/{id} va ichidagi hamma narsa (mahsulotlar,
  * buyurtmalar, mijozlar, xodimlar...), shopPrivate, shopSecrets,
  * to'lovlar, o'z domeni yozuvi, egasining telefon band qilinishi
- * (ownerPhones), xodimlarning Firebase hisoblari va Storage'dagi
- * rasmlar. Subdomen shundan keyin yana bo'sh bo'ladi.
+ * (ownerPhones), xodimlarning Firebase hisoblari, do'kon botining
+ * webhook'i (botIndex), egasining SavdoGO botidagi bog'lanishi (tgUsers)
+ * va arizalari, Storage'dagi rasmlar. Subdomen shundan keyin yana bo'sh
+ * bo'ladi. /super paneldagi «Butunlay o'chirish» xuddi shu ishni qiladi
+ * (api/_lib/platform/delete-shop.ts).
  *
  * Hisobda boshqa do'kon ham bo'lsa (ikkinchi do'kon arizasi bilan
  * ochilgan), u hisob O'CHIRILMAYDI — boshqa do'koni faol bo'lib qoladi.
@@ -50,6 +53,15 @@ if (flag !== '--delete') {
   process.exit(0)
 }
 
+// Do'kon boti: webhook uziladi — bot boshqa do'konga ulanishi mumkin bo'ladi
+const botToken = String((await db.collection('shopSecrets').doc(shopId).get()).data()?.botToken || '')
+if (botToken) {
+  await fetch(`https://api.telegram.org/bot${botToken}/deleteWebhook`, { method: 'POST' }).catch(() => undefined)
+  await db.collection('botIndex').doc(botToken.split(':')[0]).delete()
+}
+
+const removed = []
+const kept = new Map() // uid → yangi faol do'kon
 for (const doc of staff.docs) {
   const indexRef = db.collection('staffIndex').doc(doc.id)
   const index = (await indexRef.get()).data()
@@ -65,14 +77,27 @@ for (const doc of staff.docs) {
     const user = await auth.getUser(doc.id).catch(() => null)
     if (user) await auth.setCustomUserClaims(doc.id, { ...(user.customClaims ?? {}), role, shopId: next })
     console.log(`  • ${doc.id}: hisob saqlandi, faol do‘kon → ${next}`)
+    kept.set(doc.id, next)
     continue
   }
   await indexRef.delete()
   await auth.deleteUser(doc.id).catch(() => undefined) // Telegram-only kuryerda hisob yo'q
+  removed.push(doc.id)
 }
-// Egasining telefoni bo'shaydi — u yana do'kon ocha oladi
+// SavdoGO botidagi bog'lanish va arizalar — aks holda bot uni «do'koni bor» deb biladi
+for (const uid of removed) {
+  for (const tg of (await db.collection('tgUsers').where('uid', '==', uid).get()).docs) {
+    await tg.ref.set({ uid: null, shopId: null, awaiting: null, updatedAt: new Date().toISOString() }, { merge: true })
+  }
+  for (const request of (await db.collection('shopRequests').where('ownerUid', '==', uid).get()).docs) await request.ref.delete()
+}
+// Egasining telefoni bo'shaydi — u yana do'kon ocha oladi (boshqa do'koni bo'lsa — o'shanga o'tadi)
 const phones = await db.collection('ownerPhones').where('shopId', '==', shopId).get()
-for (const doc of phones.docs) await doc.ref.delete()
+for (const doc of phones.docs) {
+  const next = kept.get(String(doc.data().uid || ''))
+  if (next) await doc.ref.set({ shopId: next }, { merge: true })
+  else await doc.ref.delete()
+}
 for (const doc of payments.docs) await doc.ref.delete()
 if (domain) await db.collection('domains').doc(domain).delete()
 await db.collection('shopPrivate').doc(shopId).delete()

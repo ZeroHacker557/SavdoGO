@@ -23,7 +23,7 @@ export const PLATFORM = {
    * SavdoGO boti (PLATFORM_BOT_TOKEN egasi) — @ siz. Bo'sh bo'lsa landingdagi
    * «Telegram orqali ochish» tugmasi ko'rinmaydi; bot o'zi baribir ishlaydi.
    */
-  botUsername: '' as string,
+  botUsername: 'savdogouz_bot' as string,
 } as const
 
 /** SavdoGO botiga havola (bot sozlanmagan bo'lsa — null). */

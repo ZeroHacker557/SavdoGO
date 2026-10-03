@@ -6,6 +6,7 @@ import { PlatformError } from './errors.js'
 import { connectBot, disconnectBot } from './bot.js'
 import { superRequests } from './owners.js'
 import { runTx } from '../firestore-tx.js'
+import { deleteShopCompletely } from './delete-shop.js'
 
 /**
  * Platforma egasi (super-admin) amallari.
@@ -250,6 +251,21 @@ export async function shopUpdate(user: SuperUser, body: Record<string, unknown>)
   batch.update(shopRef, patch)
   await batch.commit()
   return { shopId, ...patch }
+}
+
+/**
+ * Do'konni butunlay o'chirish (delete-shop.ts). Tasodifiy bosishdan
+ * himoya: `confirm` maydonida do'kon manzili (id) aynan yozilgan bo'lishi shart.
+ */
+export async function shopDelete(user: SuperUser, body: Record<string, unknown>) {
+  const shopId = String(body.shopId || '').trim().toLowerCase()
+  if (!shopId) throw new PlatformError('Do‘kon tanlanmagan')
+  if (String(body.confirm || '').trim().toLowerCase() !== shopId) {
+    throw new PlatformError(`Tasdiqlash uchun do‘kon manzilini aynan yozing: ${shopId}`)
+  }
+  const result = await deleteShopCompletely(shopId)
+  console.log(`[super] ${user.email || user.uid} do‘konni o‘chirdi: ${shopId}`)
+  return result
 }
 
 export async function settingsSave(user: SuperUser, body: Record<string, unknown>) {

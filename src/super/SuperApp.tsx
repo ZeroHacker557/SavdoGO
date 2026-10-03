@@ -1,6 +1,6 @@
 import {
   BadgeCheck, Ban, Check, CheckCircle2, Clock, Copy, CreditCard, ExternalLink, Eye, FilePlus2, Gift, Globe, LayoutDashboard,
-  Loader2, LogOut, Moon, RefreshCw, Search, Send, Settings2, ShieldAlert, ShoppingBag, Store, Sun, TrendingUp, Wallet, X, XCircle,
+  Loader2, LogOut, Moon, RefreshCw, Search, Send, Settings2, ShieldAlert, ShoppingBag, Store, Sun, Trash2, TrendingUp, Wallet, X, XCircle,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import type { User } from 'firebase/auth'
@@ -779,12 +779,25 @@ function ShopEditor({ shop, run, onClose }: { shop: ShopRow; run: RunFn; onClose
   const [bot, setBot] = useState(shop.botUsername ?? '')
   const [botToken, setBotToken] = useState('')
   const [blocking, setBlocking] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
 
   const act = async (body: Record<string, unknown>, ok: string) => {
     setBusy(true)
     const done = await run('super.shop.update', { shopId: shop.id, ...body }, ok)
     setBusy(false)
     if (done) onClose()
+  }
+
+  // Butunlay o'chirish — server ham manzil aynan yozilganini tekshiradi (super.ts → shopDelete)
+  const remove = async () => {
+    setBusy(true)
+    const done = await run('super.shop.delete', { shopId: shop.id, confirm: confirmText }, `«${shop.name}» butunlay o‘chirildi`)
+    setBusy(false)
+    if (done) {
+      setDeleting(false)
+      onClose()
+    }
   }
 
   return (
@@ -861,6 +874,9 @@ function ShopEditor({ shop, run, onClose }: { shop: ShopRow; run: RunFn; onClose
               <Ban size={16} /> Do‘konni to‘xtatish
             </button>
           )}
+          <button className="adm-btn adm-btn--danger ml-auto" disabled={busy} onClick={() => { setConfirmText(''); setDeleting(true) }}>
+            <Trash2 size={16} /> Butunlay o‘chirish
+          </button>
         </section>
       </div>
 
@@ -873,6 +889,44 @@ function ShopEditor({ shop, run, onClose }: { shop: ShopRow; run: RunFn; onClose
           onConfirm={() => act({ status: 'blocked' }, 'Do‘kon to‘xtatildi')}
           onClose={() => setBlocking(false)}
         />
+      )}
+
+      {deleting && (
+        <Modal
+          title="Do‘konni butunlay o‘chirish"
+          onClose={() => !busy && setDeleting(false)}
+          footer={
+            <>
+              <button className="adm-btn adm-btn--ghost flex-1" disabled={busy} onClick={() => setDeleting(false)}>Bekor qilish</button>
+              <button
+                className="adm-btn adm-btn--danger flex-1"
+                disabled={busy || confirmText.trim().toLowerCase() !== shop.id}
+                onClick={remove}
+              >
+                {busy ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />} O‘chirish
+              </button>
+            </>
+          }
+        >
+          <p className="text-sm" style={{ color: 'var(--ink-2)' }}>
+            «{shop.name}» va undagi <b>hamma narsa</b> o‘chadi: mahsulotlar, buyurtmalar, mijozlar, xodimlar hisoblari,
+            to‘lovlar tarixi va rasmlar. Do‘kon boti uziladi, egasining telefoni bo‘shaydi — u yana do‘kon ocha oladi.
+          </p>
+          <p className="mt-2 text-sm font-bold" style={{ color: 'var(--danger)' }}>Qaytarib bo‘lmaydi.</p>
+          <label className="adm-label mt-4" htmlFor="sp-delete-confirm">
+            Tasdiqlash uchun do‘kon manzilini yozing: <code>{shop.id}</code>
+          </label>
+          <input
+            id="sp-delete-confirm"
+            className="adm-input"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder={shop.id}
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+          />
+        </Modal>
       )}
     </Modal>
   )
