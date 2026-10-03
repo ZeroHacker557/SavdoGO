@@ -99,6 +99,7 @@ export function Footer() {
               <li><a href="#how">Qanday ishlaydi</a></li>
               <li><a href="#pricing">Narxlar</a></li>
               <li><a href="#faq">Savollar</a></li>
+              <li><a href="/qollanma">Qo‘llanma</a></li>
             </ul>
           </div>
           <div>

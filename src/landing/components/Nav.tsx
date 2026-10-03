@@ -11,6 +11,7 @@ const LINKS = [
   { href: '#how', label: 'Qanday ishlaydi' },
   { href: '#pricing', label: 'Narxlar' },
   { href: '#faq', label: 'Savollar' },
+  { href: '/qollanma', label: 'Qo‘llanma' },
 ]
 
 export function Nav() {

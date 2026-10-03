@@ -190,23 +190,41 @@ export async function sendOwnerMenu(chatId: number, uid: string, heading?: strin
     [{ text: '🌐 Do‘konni ochish', url: site }],
     [bot ? { text: `🤖 @${bot}`, url: `https://t.me/${bot}` } : { text: '🤖 O‘z botimni ulash (bepul)', callback_data: 'bot' }],
     [{ text: '💻 Kompyuterda ochish', callback_data: 'web' }],
+    [guideButton()],
   ]
   await sendText(chatId, text, rows)
+}
+
+/** «📖 Qo'llanma» — saytdagi /qollanma sahifasi, bot ichida (mini app). */
+function guideButton(): Button {
+  return { text: '📖 Qo‘llanma — hammasi batafsil', web_app: { url: `${publicBase()}/qollanma` } }
 }
 
 async function sendStartMenu(chatId: number, user: TgUserDoc, from: TgFrom) {
   if (user.uid) return sendOwnerMenu(chatId, user.uid)
   if (!user.phone) {
+    // Ikki xabar: tanishtiruv (qo'llanma tugmasi bilan) va raqam so'rash —
+    // bitta xabarga ham inline, ham «kontakt» klaviaturasini qo'yib bo'lmaydi
     await sendText(
       chatId,
       [
         `👋 Assalomu alaykum, ${esc(from.first_name || '')}!`,
         '',
-        `<b>${PLATFORM.name}</b> — biznesingiz uchun tayyor onlayn do‘kon: sayt, admin panel va Telegram bot.`,
-        `5 daqiqada ochiladi, ${TRIAL_DAYS} kun bepul.`,
+        `<b>${PLATFORM.name}</b> — biznesingiz uchun tayyor onlayn do‘kon. 5 daqiqada uchta narsaga ega bo‘lasiz:`,
         '',
-        'Boshlash uchun pastdagi tugma bilan raqamingizni yuboring 👇',
+        `🌐 <b>Shaxsiy sayt</b> — nomingiz.${PLATFORM.rootDomain}. Mijozlar mahsulotlarni ko‘radi, savatga soladi va buyurtma beradi.`,
+        '⚙️ <b>Boshqaruv paneli</b> — mahsulot, narx, buyurtma, aksiya va hisobotlarni telefoningizdan boshqarasiz.',
+        '🤖 <b>Telegram bot</b> — mijozlar do‘koningizni botda ilovadek ochadi, yangi buyurtma sizga darhol keladi.',
+        '',
+        'Kafe, kiyim, gul, mebel, kosmetika va boshqa biznes uchun tayyor andozalar bor. Dasturchi kerak emas.',
+        '',
+        `🎁 <b>${TRIAL_DAYS} kun bepul</b> — barcha imkoniyatlar ochiq, karta so‘ralmaydi.`,
       ].join('\n'),
+      [[guideButton()]],
+    )
+    await sendText(
+      chatId,
+      '👇 Boshlash uchun pastdagi <b>«📱 Raqamni yuborish»</b> tugmasini bosing. Raqamingizni Telegram tasdiqlaydi — parol o‘ylab topish shart emas.',
       undefined,
       contactKeyboard(),
     )
@@ -214,8 +232,26 @@ async function sendStartMenu(chatId: number, user: TgUserDoc, from: TgFrom) {
   }
   await sendText(
     chatId,
-    `🛍 Do‘koningizni ochamiz — biznes turi, nomi, logo va ranglarni tanlaysiz. ${TRIAL_DAYS} kun bepul, karta kerak emas.`,
-    [[{ text: '🛍 Do‘kon ochish', web_app: { url: `${publicBase()}/start` } }]],
+    [
+      '🛍 <b>Do‘koningizni ochamiz!</b>',
+      '',
+      '«Do‘kon ochish» tugmasini bossangiz, shu yerning o‘zida 5 qadamli forma ochiladi:',
+      '',
+      '1️⃣ <b>Biznes turi</b> — katalog, ranglar va namuna mahsulotlar o‘zi moslanadi',
+      '2️⃣ <b>Ma’lumotlar</b> — do‘kon nomi, telefon, manzil, ish vaqti',
+      '3️⃣ <b>Yetkazish va to‘lov</b> — yetkazish narxi, olib ketish, naqd yoki karta',
+      '4️⃣ <b>Dizayn</b> — logo, rang va shrift',
+      `5️⃣ <b>Manzil</b> — nomingiz.${PLATFORM.rootDomain}`,
+      '',
+      'Har qadamda do‘koningiz qanday ko‘rinishini ko‘rib turasiz. Tayyor bo‘lgach, shu yerga havola va boshqaruv paneli tugmasi keladi.',
+      '',
+      `🎁 <b>${TRIAL_DAYS} kun bepul</b>, karta kerak emas.`,
+      '📖 Bot va boshqaruv paneli nimalar qila olishini «Qo‘llanma»dan o‘qing.',
+    ].join('\n'),
+    [
+      [{ text: '🛍 Do‘kon ochish', web_app: { url: `${publicBase()}/start` } }],
+      [guideButton()],
+    ],
   )
 }
 

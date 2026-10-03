@@ -1,0 +1,294 @@
+/* ══════════════════════════════════════════════════════════════
+   SavdoGO — Instagram karusel: 4 × (1080×1350) = 4320×1350 tuval.
+   Ranglar va shriftlar reklama videosi bilan bir xil (promo.css).
+   ══════════════════════════════════════════════════════════════ */
+
+:root {
+  --ink: #0d0f24;
+  --violet: #5b4cf5;
+  --violet-2: #8b5cf6;
+  --pink: #ec4899;
+  --lime: #c6f432;
+  --lime-ink: #1b2400;
+  --dark: #0b0c1e;
+  --tg: #229ed9;
+  --display: 'Unbounded', 'Manrope', sans-serif;
+  --sans: 'Manrope', sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--dark); }
+body { width: 4320px; height: 1350px; overflow: hidden; }
+
+.cr-canvas {
+  position: relative;
+  width: 4320px;
+  height: 1350px;
+  overflow: hidden;
+  background: var(--dark);
+  color: #fff;
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Fon: rang dog'lari slaydlar chegarasida — surganda rang uzilmaydi */
+.cr-orb { position: absolute; border-radius: 50%; filter: blur(110px); opacity: 0.75; }
+.cr-orb--1 { left: -260px; top: -320px; width: 1100px; height: 1000px; background: #3b2fd1; }
+.cr-orb--2 { left: 760px; top: 640px; width: 1000px; height: 900px; background: #7a1f6b; }
+.cr-orb--3 { left: 1980px; top: -360px; width: 1100px; height: 900px; background: #2c2a8f; }
+.cr-orb--4 { left: 3000px; top: 560px; width: 1300px; height: 1000px; background: #4b1f8f; }
+.cr-grid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgb(255 255 255 / 0.12) 2px, transparent 2.5px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(180deg, transparent, #000 25%, #000 75%, transparent);
+}
+.cr-thread { position: absolute; inset: 0; z-index: 1; width: 4320px; height: 1350px; filter: drop-shadow(0 0 14px rgb(198 244 50 / 0.45)); }
+
+.cr-slides { position: relative; z-index: 2; display: flex; }
+.cr-slide { position: relative; width: 1080px; height: 1350px; padding: 76px 84px; }
+
+/* ── Umumiy ── */
+.cr-top { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+.cr-pill {
+  padding: 12px 26px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.14);
+  font-size: 30px;
+  font-weight: 800;
+}
+.cr-num { font-family: var(--display); font-size: 30px; font-weight: 600; color: rgb(255 255 255 / 0.5); }
+.cr-num b { color: var(--lime); }
+
+.cr-word { display: inline-flex; align-items: center; gap: 8px; font-family: var(--display); font-weight: 700; letter-spacing: -0.02em; }
+.cr-word b { padding: 2px 16px 4px; border-radius: 14px; background: var(--lime); color: var(--lime-ink); }
+.cr-word--md { font-size: 44px; }
+.cr-word--lg { font-size: 96px; }
+.cr-word--lg b { border-radius: 26px; padding: 4px 26px 8px; }
+
+.cr-h1, .cr-h2 { margin: 0; font-family: var(--display); font-weight: 700; letter-spacing: -0.035em; line-height: 1.24; }
+.cr-h1 { margin-top: 26px; font-size: 90px; }
+.cr-h2 { margin-top: 10px; font-size: 76px; }
+mark {
+  padding: 0 14px;
+  border-radius: 18px;
+  background: var(--lime);
+  color: var(--lime-ink);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.cr-kicker { display: inline-flex; align-items: center; gap: 12px; margin: 40px 0 0; color: var(--lime); font-size: 34px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.cr-swipe {
+  position: absolute;
+  right: 84px;
+  bottom: 76px;
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 32px;
+  font-weight: 800;
+  color: rgb(255 255 255 / 0.85);
+}
+.cr-swipe i {
+  display: grid;
+  place-items: center;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: var(--lime);
+  color: var(--lime-ink);
+  box-shadow: 0 0 0 12px rgb(198 244 50 / 0.16), 0 18px 40px -10px rgb(198 244 50 / 0.6);
+}
+
+/* ── 1. Hook: Direct'dagi tartibsizlik ── */
+.cr-dms { position: absolute; left: 84px; right: 84px; top: 664px; height: 450px; }
+.cr-dms__badge {
+  position: absolute;
+  top: -4px;
+  right: -10px;
+  z-index: 6;
+  padding: 12px 24px;
+  border-radius: 999px;
+  background: #ff3b5c;
+  font-size: 30px;
+  font-weight: 800;
+  box-shadow: 0 16px 40px -8px rgb(255 59 92 / 0.7);
+  transform: rotate(4deg);
+}
+.cr-dm {
+  position: absolute;
+  left: calc(var(--i) * 34px);
+  top: calc(var(--i) * 84px);
+  z-index: calc(var(--i) + 1);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: 740px;
+  padding: 16px 24px;
+  border-radius: 28px;
+  background: rgb(255 255 255 / 0.96);
+  color: var(--ink);
+  box-shadow: 0 22px 46px -14px rgb(0 0 0 / 0.6);
+  transform: rotate(calc((var(--i) - 2) * -1.4deg));
+}
+.cr-dm__ava {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #feda75, #fa7e1e 35%, #d62976 65%, #962fbf);
+  color: #fff;
+  font-size: 30px;
+  font-weight: 800;
+}
+.cr-dm__body { display: grid; flex: 1; min-width: 0; gap: 0; }
+.cr-dm__body b { font-size: 22px; color: #6b6f86; }
+.cr-dm__body span { font-size: 33px; font-weight: 700; }
+.cr-dm small { align-self: flex-start; font-size: 22px; font-weight: 700; color: #9aa0b4; }
+.cr-dm::after { content: ''; position: absolute; right: 26px; bottom: 22px; width: 14px; height: 14px; border-radius: 50%; background: var(--violet); }
+.cr-dm.is-angry { background: #fff1f3; box-shadow: 0 0 0 4px #ff3b5c, 0 24px 50px -14px rgb(255 59 92 / 0.6); }
+.cr-dm.is-angry::after { background: #ff3b5c; }
+.cr-sub { position: absolute; left: 84px; right: 340px; bottom: 84px; margin: 0; font-size: 32px; font-weight: 600; line-height: 1.35; color: rgb(255 255 255 / 0.78); }
+.cr-sub b { color: #fff; }
+
+/* ── 2. Yechim: qadamlar, telefon va belgilar ── */
+.cr-steps {
+  display: flex;
+  gap: 14px;
+  margin: 36px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.cr-steps li {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 22px 10px 10px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.12);
+  font-size: 27px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.cr-steps i { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 50%; background: var(--violet); font-style: normal; font-size: 26px; }
+.cr-steps li:last-child i { background: var(--lime); color: var(--lime-ink); }
+.cr-phone {
+  position: absolute;
+  left: 214px;
+  top: 650px;
+  transform: rotate(-5deg) scale(1.46);
+  transform-origin: 50% 0;
+  filter: drop-shadow(0 50px 70px rgb(0 0 0 / 0.6));
+}
+.cr-chip {
+  position: absolute;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 26px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 30px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 22px 46px -12px rgb(0 0 0 / 0.6);
+}
+.cr-chip svg { color: var(--violet); }
+.cr-chip--a { right: 60px; top: 700px; transform: rotate(3deg); }
+.cr-chip--b { right: 96px; top: 850px; transform: rotate(-2deg); background: var(--tg); color: #fff; }
+.cr-chip--b svg { color: #fff; }
+.cr-chip--c { right: 70px; top: 1000px; transform: rotate(2deg); background: var(--lime); color: var(--lime-ink); }
+.cr-chip--c svg { color: var(--lime-ink); }
+
+/* ── 3. Afzalliklar ── */
+.cr-notify {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-top: 40px;
+  padding: 20px 28px;
+  border-radius: 28px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 30px 60px -16px rgb(0 0 0 / 0.6), 0 0 0 6px rgb(198 244 50 / 0.35);
+  transform: rotate(-1.5deg);
+}
+.cr-notify i { display: grid; flex: none; place-items: center; width: 72px; height: 72px; border-radius: 22px; background: linear-gradient(135deg, #5b4cf5, #ec4899); color: #fff; }
+.cr-notify span { display: grid; flex: 1; gap: 2px; }
+.cr-notify b { font-size: 33px; font-weight: 800; }
+.cr-notify small { font-size: 25px; font-weight: 700; color: #7b8099; }
+.cr-notify strong { font-family: var(--display); font-size: 34px; color: #1f9d55; white-space: nowrap; }
+.cr-features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 40px; }
+.cr-feature {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-height: 196px;
+  padding: 22px 20px;
+  border-radius: 26px;
+  background: rgb(255 255 255 / 0.08);
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.1);
+}
+.cr-feature i { display: grid; place-items: center; width: 62px; height: 62px; margin-bottom: 6px; border-radius: 18px; background: rgb(198 244 50 / 0.16); color: var(--lime); }
+.cr-feature b { font-size: 28px; font-weight: 800; line-height: 1.15; }
+.cr-feature span { font-size: 23px; font-weight: 600; color: rgb(255 255 255 / 0.65); }
+.cr-note { position: absolute; left: 84px; right: 340px; bottom: 112px; margin: 0; font-size: 30px; font-weight: 700; line-height: 1.35; color: rgb(255 255 255 / 0.78); }
+
+/* ── 4. Taklif va chaqiruv ── */
+.cr-offer { margin-top: 56px; text-align: center; }
+.cr-offer__tag { display: inline-block; padding: 14px 30px; border-radius: 999px; background: rgb(255 255 255 / 0.1); font-size: 34px; font-weight: 800; }
+.cr-offer__big { margin: 26px 0 0; font-family: var(--display); font-size: 130px; font-weight: 700; line-height: 1; letter-spacing: -0.04em; }
+.cr-offer__big b { color: var(--lime); font-size: 230px; vertical-align: -0.08em; text-shadow: 0 0 80px rgb(198 244 50 / 0.45); }
+.cr-offer__free {
+  display: inline-block;
+  margin: 18px 0 0;
+  padding: 10px 46px 16px;
+  border-radius: 28px;
+  background: var(--lime);
+  color: var(--lime-ink);
+  font-family: var(--display);
+  font-size: 120px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  transform: rotate(-3deg);
+  box-shadow: 0 30px 70px -14px rgb(198 244 50 / 0.55);
+}
+.cr-offer__fine { margin: 40px 0 0; font-size: 34px; font-weight: 600; color: rgb(255 255 255 / 0.78); }
+.cr-offer__fine b { color: #fff; }
+.cr-cta {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  margin: 56px auto 0;
+  width: fit-content;
+  padding: 24px 48px 24px 24px;
+  border-radius: 999px;
+  background: var(--tg);
+  box-shadow: 0 0 0 10px rgb(34 158 217 / 0.22), 0 30px 60px -12px rgb(34 158 217 / 0.7);
+}
+.cr-cta i { display: grid; place-items: center; width: 100px; height: 100px; border-radius: 50%; background: #fff; color: var(--tg); }
+.cr-cta span { display: grid; gap: 2px; }
+.cr-cta small { font-size: 30px; font-weight: 700; color: rgb(255 255 255 / 0.85); }
+.cr-cta b { font-family: var(--display); font-size: 52px; font-weight: 700; letter-spacing: -0.02em; }
+.cr-site { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 34px 0 0; font-size: 38px; font-weight: 800; color: var(--lime); }
+.cr-save {
+  position: absolute;
+  left: 84px;
+  right: 84px;
+  bottom: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: rgb(255 255 255 / 0.6);
+}

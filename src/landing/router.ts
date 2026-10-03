@@ -1,16 +1,21 @@
 import { useEffect, useState } from 'react'
 
 /**
- * Landingning ikki sahifasi: `/` va `/start` (ro'yxatdan o'tish).
+ * Landing sahifalari: `/`, `/start` (ro'yxatdan o'tish) va `/qollanma`.
  *
- * Kutubxonasiz — History API. Vercel'da `/start` → index.html qayta
- * yozuvi vercel.json da, `vite dev` esa noma'lum manzilni o'zi
- * index.html ga tushiradi.
+ * Kutubxonasiz — History API. Vercel'da `/start` va `/qollanma` →
+ * index.html qayta yozuvi vercel.json da, `vite dev` esa noma'lum
+ * manzilni o'zi index.html ga tushiradi.
  */
-export type LandingRoute = 'home' | 'start'
+export type LandingRoute = 'home' | 'start' | 'guide'
+
+const PATHS: Record<LandingRoute, string> = { home: '/', start: '/start', guide: '/qollanma' }
 
 function current(): LandingRoute {
-  return window.location.pathname.replace(/\/+$/, '') === '/start' ? 'start' : 'home'
+  const path = window.location.pathname.replace(/\/+$/, '')
+  if (path === '/start') return 'start'
+  if (path === '/qollanma') return 'guide'
+  return 'home'
 }
 
 export function useLandingRoute(): LandingRoute {
@@ -28,7 +33,7 @@ export function useLandingRoute(): LandingRoute {
 }
 
 export function goTo(route: LandingRoute) {
-  const path = route === 'start' ? '/start' : '/'
+  const path = PATHS[route]
   if (window.location.pathname !== path) {
     window.history.pushState(null, '', path + (route === 'home' ? window.location.search : ''))
   }

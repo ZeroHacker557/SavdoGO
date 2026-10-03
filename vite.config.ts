@@ -125,6 +125,9 @@ export default defineConfig({
   server: {
     // nomi.localhost:5173 — subdomenli do'konni lokal sinash uchun
     allowedHosts: ['.localhost'],
+    // Render natijalari (video, rasm, Chrome'ning vaqtinchalik profili) —
+    // kuzatilmasin: band fayl dev serverni yiqitadi
+    watch: { ignored: ['**/promo/out/**'] },
   },
   build: {
     rollupOptions: {
