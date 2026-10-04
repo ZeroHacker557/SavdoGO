@@ -1,10 +1,10 @@
 import { adminDb } from '../firebase-admin.js'
 import { PlatformError } from './errors.js'
 import { esc } from './notify.js'
-import { publicBase, tgRequest, type TgResponse } from './tgbot.js'
+import { ensurePlatformWebhook, platformToken, publicBase, tgRequest, type TgResponse } from './tgbot.js'
 import type { SuperUser } from './super.js'
 import { PLATFORM } from '../../../src/platform/plans.js'
-import { listChannels, pickChannels } from '../channels.js'
+import { addChatManually, listChannels, pickChannels } from '../channels.js'
 
 /**
  * /super → «Xabar»: SavdoGO botidagi hamma (yoki tanlangan guruh) ga
@@ -66,6 +66,8 @@ function shopState(data: Record<string, unknown>): 'trial' | 'active' | 'expired
 
 export async function broadcastAudience() {
   const db = await adminDb()
+  // Eski sozlangan bot kanal hodisalarini olmasligi mumkin — kerak bo'lsa tuzatiladi
+  const webhookFixed = await ensurePlatformWebhook().catch(() => false)
   const [tg, index, shops, history, channels] = await Promise.all([
     db.collection('tgUsers').get(),
     db.collection('staffIndex').get(),
@@ -98,6 +100,20 @@ export async function broadcastAudience() {
     history: history.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
     testChat: Boolean(process.env.PLATFORM_CHAT_ID),
     botUsername: PLATFORM.botUsername || null,
+    webhookFixed,
+  }
+}
+
+/** Kanalni qo'lda qo'shish: @kanal yoki -100… (bot o'sha yerda admin bo'lishi shart). */
+export async function broadcastAddChannel(_user: SuperUser, input: Record<string, unknown>) {
+  const token = platformToken()
+  if (!token) throw new PlatformError('PLATFORM_BOT_TOKEN qo‘yilmagan')
+  const db = await adminDb()
+  try {
+    const channel = await addChatManually(db.collection('platformChannels'), (method, body) => tgRequest(method, body), token.split(':')[0], input.chat)
+    return { channel }
+  } catch (error) {
+    throw new PlatformError(error instanceof Error ? error.message : 'Kanal qo‘shilmadi')
   }
 }
 

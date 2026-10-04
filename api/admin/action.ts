@@ -6,7 +6,7 @@ import {
   categoryDelete, categorySave, orderSave, productBulkUpdate, productDelete, productSave,
   promoDelete, promoSave, requireCatalogAccess,
 } from '../_lib/actions/catalog.js'
-import { broadcast, broadcastChannels, staffDelete, staffLinkTelegram, staffSave } from '../_lib/actions/people.js'
+import { broadcast, broadcastAddChannel, broadcastChannels, staffDelete, staffLinkTelegram, staffSave } from '../_lib/actions/people.js'
 import { catalogLayout, sectionDelete, sectionSave } from '../_lib/actions/sections.js'
 import { promotionDelete, promotionSave } from '../_lib/actions/promotions.js'
 import { adSave } from '../_lib/actions/ads.js'
@@ -68,6 +68,7 @@ const HANDLERS: Record<string, Handler> = {
   'staff.delete': staffDelete,
   'broadcast.send': broadcast,
   'broadcast.channels': broadcastChannels,
+  'broadcast.addChannel': broadcastAddChannel,
 
   // Kuryerlar bilan qo'llab-quvvatlash chati — javobni admin beradi
   'support.reply': (staff, body) => (requireSupportAccess(staff), supportReply(staff, body)),
@@ -110,7 +111,7 @@ const ADDON_ACTIONS = new Set([
   'order.assign', 'courier.take', 'courier.deliver',
   'support.reply', 'support.read', 'support.close',
   'cash.confirm', 'cash.reject',
-  'broadcast.send', 'broadcast.channels', 'settings.testGroup',
+  'broadcast.send', 'broadcast.channels', 'broadcast.addChannel', 'settings.testGroup',
 ])
 
 function needsAddon(action: string, body: Body): boolean {

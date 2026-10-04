@@ -215,3 +215,5 @@
 .sp-bc-channel.is-on { border-color: var(--brand); background: var(--brand-soft); }
 .sp-bc-channel.is-off { cursor: not-allowed; opacity: 0.6; }
 .sp-bc-hint { margin: 0; padding: 0.7rem 0.8rem; border-radius: 12px; background: var(--surface-2); color: var(--muted); font-size: 0.8rem; line-height: 1.45; }
+.sp-bc-add { display: flex; gap: 8px; margin-top: 8px; }
+.sp-bc-add .adm-input { flex: 1; min-width: 0; }

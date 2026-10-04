@@ -1,7 +1,7 @@
 import {
   CheckCircle2, ExternalLink, ImagePlus, Loader2, Megaphone, Plus, Search, Send, Smartphone, Trash2, Users, X, XCircle,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { uploadBroadcastMedia, type UploadedAdMedia } from '../lib/storage'
 import { apiPost } from '../lib/api'
 import { useCategories, useCustomers, useOrders, useProducts, useSections, type CustomerRow } from '../lib/live'
@@ -128,6 +128,25 @@ export function BroadcastPage() {
   const [channels, setChannels] = useState<ChannelRow[]>([])
   const [channelsTick, setChannelsTick] = useState(0)
   const [pickedChannels, setPickedChannels] = useState<string[]>([])
+  const [newChannel, setNewChannel] = useState('')
+  const [adding, setAdding] = useState(false)
+  /** Kanalni qo'lda qo'shish: @kanal yoki t.me/kanal — do'kon boti u yerda admin bo'lishi shart. */
+  const addChannel = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!newChannel.trim()) return
+    setAdding(true)
+    try {
+      const { channel } = await apiPost<{ channel: ChannelRow }>('action', { action: 'broadcast.addChannel', chat: newChannel })
+      setNewChannel('')
+      setPickedChannels((list) => [...new Set([...list, channel.id])])
+      setChannelsTick((n) => n + 1)
+      show(`«${channel.title}» qo‘shildi`)
+    } catch (error) {
+      show(error instanceof Error ? error.message : 'Kanal qo‘shilmadi', 'error')
+    } finally {
+      setAdding(false)
+    }
+  }
   useEffect(() => {
     let alive = true
     apiPost<{ channels: ChannelRow[] }>('action', { action: 'broadcast.channels' }).then(
@@ -622,10 +641,23 @@ export function BroadcastPage() {
           ) : (
             <p className="adm-bc-note">
               Kanalingizga ham yuborish uchun {shop.botUsername ? <b>@{shop.botUsername}</b> : 'botingizni'} kanalga admin qilib qo‘shing
-              («Xabar joylash» huquqi bilan) — kanal shu yerda o‘zi paydo bo‘ladi. Bot kanalda allaqachon bo‘lsa — uni chiqarib, qayta qo‘shing.{' '}
-              <button type="button" className="adm-link" onClick={() => setChannelsTick((n) => n + 1)}>Yangilash</button>
+              («Xabar joylash» huquqi bilan), keyin kanal manzilini pastga yozing.
             </p>
           )}
+          <form className="adm-bc-add-channel" onSubmit={addChannel}>
+            <input
+              className="adm-input"
+              placeholder="@kanal_nomi yoki t.me/kanal_nomi"
+              value={newChannel}
+              onChange={(e) => setNewChannel(e.target.value)}
+              disabled={adding || running}
+              autoCapitalize="none"
+              spellCheck={false}
+            />
+            <button className="adm-btn adm-btn--ghost" disabled={adding || running || !newChannel.trim()}>
+              {adding ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Kanal qo‘shish
+            </button>
+          </form>
 
           <button
             className="adm-btn adm-btn--primary mt-4 w-full py-3"

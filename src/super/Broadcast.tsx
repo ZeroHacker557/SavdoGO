@@ -2,7 +2,7 @@ import {
   Bold, CheckCircle2, Code, ExternalLink, EyeOff, ImagePlus, Italic, LayoutDashboard, Link2, Loader2, Megaphone, Plus,
   RefreshCw, Search, Send, ShieldBan, Sparkles, Store, Strikethrough, Trash2, Underline, UserRound, Users, X, XCircle,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { uploadPlatformBroadcastMedia, type UploadedAdMedia } from '../admin/lib/storage'
 import { ConfirmDialog } from '../admin/components/Modal'
 import { PLANS, PLATFORM, TRIAL_DAYS, YEAR_SAVING_PERCENT, formatSum } from '../platform/config'
@@ -219,6 +219,8 @@ export function Broadcast({ api, show }: { api: Api; show: Show }) {
   const [audience, setAudience] = useState<Audience>('all')
   const [manual, setManual] = useState<string[]>([])
   const [pickedChannels, setPickedChannels] = useState<string[]>([])
+  const [newChannel, setNewChannel] = useState('')
+  const [adding, setAdding] = useState(false)
   const [search, setSearch] = useState('')
 
   const [confirming, setConfirming] = useState(false)
@@ -320,6 +322,24 @@ export function Broadcast({ api, show }: { api: Api; show: Show }) {
     buttons: buttons.map((b) => ({ kind: b.kind, text: b.text.trim(), url: b.url.trim(), style: b.style, sameRow: b.sameRow })),
     options: { silent, protect, noPreview },
   })
+
+  /** Kanalni qo'lda qo'shish: @kanal yoki t.me/kanal — bot u yerda admin bo'lishi shart. */
+  const addChannel = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!newChannel.trim()) return
+    setAdding(true)
+    try {
+      const { channel } = await api<{ channel: ChannelRow }>('super.broadcast.addChannel', { chat: newChannel })
+      setNewChannel('')
+      setPickedChannels((list) => [...new Set([...list, channel.id])])
+      setReload((n) => n + 1)
+      show(`«${channel.title}» qo‘shildi`)
+    } catch (error) {
+      show(error instanceof Error ? error.message : 'Kanal qo‘shilmadi', 'error')
+    } finally {
+      setAdding(false)
+    }
+  }
 
   const sendTest = async () => {
     setTesting(true)
@@ -666,9 +686,23 @@ export function Broadcast({ api, show }: { api: Api; show: Show }) {
           ) : (
             <p className="sp-bc-hint">
               Kanalingizga ham yuborish uchun <b>@{PLATFORM.botUsername || 'bot'}</b> ni kanalga admin qilib qo‘shing
-              («Xabar joylash» huquqi bilan) — kanal shu yerda o‘zi paydo bo‘ladi. Bot kanalda allaqachon bo‘lsa — uni chiqarib, qayta qo‘shing. Keyin o‘ngdagi yangilash tugmasini bosing.
+              («Xabar joylash» huquqi bilan), keyin kanal manzilini pastga yozing.
             </p>
           )}
+          <form className="sp-bc-add" onSubmit={addChannel}>
+            <input
+              className="adm-input"
+              placeholder="@kanal_nomi yoki t.me/kanal_nomi"
+              value={newChannel}
+              onChange={(e) => setNewChannel(e.target.value)}
+              disabled={adding || running}
+              autoCapitalize="none"
+              spellCheck={false}
+            />
+            <button className="adm-btn adm-btn--ghost" disabled={adding || running || !newChannel.trim()}>
+              {adding ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Kanal qo‘shish
+            </button>
+          </form>
         </div>
 
         {/* Yuborish */}

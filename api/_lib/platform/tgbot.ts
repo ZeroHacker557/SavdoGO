@@ -476,6 +476,23 @@ export const BOT_DESCRIPTION = [
   '👇 «Boshlash» tugmasini bosing',
 ].join('\n')
 
+const PLATFORM_UPDATES = ['message', 'callback_query', 'my_chat_member']
+
+/**
+ * «Botni sozlash» eski versiyada bosilgan bo'lsa, webhook kanal hodisalarini
+ * (my_chat_member) olmaydi. /super → «Xabar» ochilganda tekshiriladi va
+ * kerak bo'lsa yangilanadi. Xato tashlamaydi.
+ */
+export async function ensurePlatformWebhook(): Promise<boolean> {
+  const token = platformToken()
+  if (!token) return false
+  const info = await tgCall<{ url?: string; allowed_updates?: string[] }>('getWebhookInfo', {})
+  if (!info?.url) return false
+  if (PLATFORM_UPDATES.every((u) => info.allowed_updates?.includes(u))) return false
+  await tgCall('setWebhook', { url: info.url, secret_token: platformWebhookSecret(token), allowed_updates: PLATFORM_UPDATES })
+  return true
+}
+
 /** Webhook, buyruqlar va tavsif — /super → Sozlamalar → «SavdoGO botini sozlash». */
 export async function setupPlatformBot() {
   const token = platformToken()
@@ -486,7 +503,7 @@ export async function setupPlatformBot() {
     url: `${publicBase()}/api/telegram?platform=1`,
     secret_token: platformWebhookSecret(token),
     // my_chat_member — kim botni bloklagani (ommaviy xabar ro'yxati uchun)
-    allowed_updates: ['message', 'callback_query', 'my_chat_member'],
+    allowed_updates: PLATFORM_UPDATES,
     drop_pending_updates: true,
   })
   if (webhook === null) throw new PlatformError('Webhook o‘rnatilmadi — sayt manzili ochiqmi (https)?')

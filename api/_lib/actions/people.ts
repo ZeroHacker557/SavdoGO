@@ -6,7 +6,7 @@ import type { Staff, StaffRole } from '../admin-auth.js'
 import { canDeliver, syncCourierFlag } from '../courier-staff.js'
 import { miniAppUrl } from './orders.js'
 import { currentShop, shopDoc } from '../context.js'
-import { listChannels, pickChannels } from '../channels.js'
+import { addChatManually, listChannels, pickChannels } from '../channels.js'
 import { refreshBotWebhook } from '../platform/bot.js'
 
 const ROLES: StaffRole[] = ['owner', 'admin', 'courier']
@@ -296,6 +296,20 @@ function readButtons(value: unknown): BroadcastButton[] {
     const style = STYLES.includes(raw.style as ButtonStyle) ? (raw.style as ButtonStyle) : null
     return { text: label, textRu: labelRu, kind, url: kind === 'url' ? url : '', target, style }
   })
+}
+
+/** Kanalni qo'lda qo'shish: @kanal yoki -100… (do'kon boti o'sha yerda admin bo'lishi shart). */
+export async function broadcastAddChannel(actor: Staff, body: Record<string, unknown>) {
+  if (actor.role === 'courier') throw new Error('Kuryer ommaviy xabar yubora olmaydi')
+  const token = currentShop().botToken
+  if (!token) throw new Error('Avval do‘kon botini ulang')
+  const base = `${process.env.TELEGRAM_API_URL || 'https://api.telegram.org'}/bot${token}`
+  const call = async (method: string, payload: Record<string, unknown>) => {
+    const response = await fetch(`${base}/${method}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    return (await response.json().catch(() => ({ ok: false }))) as { ok: boolean; result?: unknown; description?: string }
+  }
+  const channel = await addChatManually((await shopDoc()).collection('channels'), call, token.split(':')[0], body.chat)
+  return { channel }
 }
 
 /** Do'kon boti qo'shilgan kanal va guruhlar — ommaviy xabar sahifasi uchun. */

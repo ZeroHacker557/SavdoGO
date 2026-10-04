@@ -2383,3 +2383,5 @@
 .adm-bc-channel small { display: block; color: var(--muted); font-size: 0.74rem; }
 .adm-bc-channel.is-on { border-color: var(--brand); background: var(--brand-soft); }
 .adm-bc-channel.is-off { cursor: not-allowed; opacity: 0.6; }
+.adm-bc-add-channel { display: flex; gap: 8px; margin-top: 8px; }
+.adm-bc-add-channel .adm-input { flex: 1; min-width: 0; }

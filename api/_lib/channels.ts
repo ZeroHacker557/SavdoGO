@@ -52,6 +52,40 @@ export async function trackChat(collection: CollectionReference, member: ChatMem
   return true
 }
 
+/** Bot API chaqiruvi (SavdoGO yoki do'kon boti): natija yoki xato matni. */
+export type BotCall = (method: string, body: Record<string, unknown>) => Promise<{ ok: boolean; result?: unknown; description?: string }>
+
+/**
+ * Kanalni QO'LDA qo'shish: `@kanal` yoki `-100…` ID. Bot kanalga hodisa
+ * yozilishidan oldin qo'shilgan bo'lsa (yoki Telegram xabar bermagan bo'lsa)
+ * ham ishlaydi — Telegram'dan botning shu chatdagi huquqi so'raladi.
+ */
+export async function addChatManually(collection: CollectionReference, call: BotCall, botId: string, input: unknown): Promise<ChannelRow> {
+  let raw = String(input || '').trim()
+  const link = /^(?:https?:\/\/)?t\.me\/([A-Za-z0-9_]{4,})\/?$/.exec(raw)
+  if (link) raw = `@${link[1]}`
+  if (/^[A-Za-z0-9_]{4,}$/.test(raw) && !/^-?\d+$/.test(raw)) raw = `@${raw}`
+  if (!/^@[A-Za-z0-9_]{4,}$/.test(raw) && !/^-?\d{5,20}$/.test(raw)) {
+    throw new Error('Kanal manzilini yozing: @kanal_nomi, t.me/kanal_nomi yoki yopiq kanal ID si (-100…)')
+  }
+
+  const chatRes = await call('getChat', { chat_id: raw })
+  if (!chatRes.ok) throw new Error('Kanal topilmadi — manzil to‘g‘rimi va bot kanalga qo‘shilganmi?')
+  const chat = chatRes.result as { id: number; type: string; title?: string; username?: string }
+  if (!TYPES.includes(chat.type)) throw new Error('Bu kanal yoki guruh emas')
+
+  const memberRes = await call('getChatMember', { chat_id: chat.id, user_id: Number(botId) })
+  const member = (memberRes.result ?? {}) as { status?: string; can_post_messages?: boolean }
+  if (!memberRes.ok || !member.status || member.status === 'left' || member.status === 'kicked') {
+    throw new Error('Bot bu kanalda yo‘q — avval botni kanalga admin qilib qo‘shing')
+  }
+  await trackChat(collection, { chat, new_chat_member: member })
+  const saved = (await listChannels(collection)).find((c) => c.id === String(chat.id))
+  if (!saved) throw new Error('Kanal saqlanmadi')
+  if (!saved.canPost) throw new Error('Bot kanalda bor, lekin «Xabar joylash» huquqi yo‘q — kanal sozlamalarida botga shu huquqni bering')
+  return saved
+}
+
 export async function listChannels(collection: CollectionReference): Promise<ChannelRow[]> {
   const snap = await collection.get()
   return snap.docs
