@@ -784,6 +784,21 @@ function ShopEditor({ shop, run, onClose }: { shop: ShopRow; run: RunFn; onClose
   const [blocking, setBlocking] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [confirmText, setConfirmText] = useState('')
+  // Egasi kira olmay qolganda — bir martalik kirish havolasi (super.ts → shopLoginLink)
+  const [loginLink, setLoginLink] = useState('')
+  const [linkError, setLinkError] = useState('')
+
+  const makeLoginLink = async () => {
+    setBusy(true)
+    setLinkError('')
+    try {
+      setLoginLink((await superApi<{ url: string }>('super.shop.loginLink', { shopId: shop.id })).url)
+    } catch (err) {
+      setLinkError(err instanceof Error ? err.message : 'Havola yaratilmadi')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const act = async (body: Record<string, unknown>, ok: string) => {
     setBusy(true)
@@ -865,6 +880,27 @@ function ShopEditor({ shop, run, onClose }: { shop: ShopRow; run: RunFn; onClose
               Saqlash
             </button>
           </div>
+        </section>
+
+        <section className="grid gap-2">
+          <h3 className="sp-h3">Egasi kira olmayaptimi?</h3>
+          <p className="text-sm" style={{ color: 'var(--muted)' }}>
+            Telegram, raqam va email yo‘qolgan bo‘lsa — egasi ekanini tekshirib, unga shu havolani bering. Havola 10 daqiqa va
+            bir marta ishlaydi, uni «Hisobim» bo‘limiga olib boradi — u yerda yangi kirish usulini ulaydi.
+          </p>
+          {loginLink ? (
+            <div className="flex gap-2">
+              <input className="adm-input flex-1 text-xs" readOnly value={loginLink} onFocus={(e) => e.target.select()} />
+              <button className="adm-btn adm-btn--ghost" onClick={() => void navigator.clipboard?.writeText(loginLink)}>
+                <Copy size={16} /> Nusxa
+              </button>
+            </div>
+          ) : (
+            <button className="adm-btn adm-btn--ghost justify-self-start" disabled={busy} onClick={makeLoginLink}>
+              <ExternalLink size={16} /> Kirish havolasini yaratish
+            </button>
+          )}
+          {linkError && <p className="text-sm" style={{ color: 'var(--danger)' }}>{linkError}</p>}
         </section>
 
         <section className="flex flex-wrap gap-2 border-t pt-4" style={{ borderColor: 'var(--line)' }}>

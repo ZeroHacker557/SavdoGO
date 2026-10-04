@@ -198,3 +198,20 @@
 .sp-bc-row .adm-bc-preview__btn { flex: 1 1 0; min-width: 0; }
 .sp-bc-spoiler { border-radius: 3px; background: var(--ink-2); color: transparent; }
 .sp-bc-spoiler:hover { background: transparent; color: inherit; }
+
+/* Kanal va guruhlar ro'yxati */
+.sp-bc-channels { display: grid; gap: 8px; }
+.sp-bc-channel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.sp-bc-channel b { display: block; font-size: 0.86rem; }
+.sp-bc-channel small { display: block; color: var(--muted); font-size: 0.74rem; }
+.sp-bc-channel.is-on { border-color: var(--brand); background: var(--brand-soft); }
+.sp-bc-channel.is-off { cursor: not-allowed; opacity: 0.6; }
+.sp-bc-hint { margin: 0; padding: 0.7rem 0.8rem; border-radius: 12px; background: var(--surface-2); color: var(--muted); font-size: 0.8rem; line-height: 1.45; }

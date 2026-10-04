@@ -13,7 +13,8 @@ import { currentShop, hasShop } from './context.js'
  * `ok: false` qaytaradi, hech narsa buzilmaydi.
  */
 
-const API = 'https://api.telegram.org/bot'
+// TELEGRAM_API_URL — faqat lokal sinovda (soxta Telegram server); saytda bo'sh
+const API = `${process.env.TELEGRAM_API_URL || 'https://api.telegram.org'}/bot`
 
 export type SendResult = { ok: true; messageId: number } | { ok: false; error: string }
 

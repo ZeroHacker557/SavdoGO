@@ -1,6 +1,6 @@
 import {
   ArrowRight, BarChart3, Bell, Bike, Bot, BrainCircuit, Clapperboard, CreditCard, FileBarChart, Flame, Globe, Headset,
-  Laptop, Layers, LayoutDashboard, LayoutGrid, MapPinned, Megaphone, Palette, Phone, Send, Settings, ShoppingBag,
+  KeyRound, Laptop, Layers, LayoutDashboard, LayoutGrid, MapPinned, Megaphone, Palette, Phone, Send, Settings, ShoppingBag,
   Smartphone, Store, Tag, UserCog, Users, Wallet, type LucideIcon,
 } from 'lucide-react'
 import { useEffect, type ReactNode } from 'react'
@@ -59,7 +59,7 @@ const PANEL: { group: string; items: Item[] }[] = [
     items: [
       { icon: Users, title: 'Mijozlar', text: 'Kim, qachon va qancha xarid qilgani — doimiy mijozlaringizni bilasiz.' },
       { icon: UserCog, title: 'Xodimlar', text: 'Admin va kuryer qo‘shasiz. Har biri faqat o‘ziga kerakli bo‘limni ko‘radi.' },
-      { icon: Megaphone, title: 'Ommaviy xabar', text: 'Barcha mijozlaringizga rasm va tugma bilan xabar — yangi aksiya haqida bir bosishda.', bot: true },
+      { icon: Megaphone, title: 'Ommaviy xabar', text: 'Barcha mijozlaringizga va Telegram kanalingizga rasm va tugma bilan xabar — yangi aksiya haqida bir bosishda.', bot: true },
       { icon: Headset, title: 'Kuryerlar chati', text: 'Kuryer manzilni topolmasa — ilovadan yozadi, siz paneldan javob berasiz.', bot: true },
       { icon: Wallet, title: 'Kuryerlar kassasi', text: 'Kuryer yig‘gan naqd pulni topshiradi, siz tasdiqlaysiz — har bir so‘m hisobda.', bot: true },
     ],
@@ -71,6 +71,7 @@ const PANEL: { group: string; items: Item[] }[] = [
       { icon: Settings, title: 'Yetkazish va to‘lov', text: 'Yetkazish narxi, qaysi summadan bepul, minimal buyurtma, olib ketish, naqd yoki karta.' },
       { icon: CreditCard, title: 'Obuna va to‘lov', text: 'Tarifni tanlaysiz, kartaga o‘tkazasiz va chek rasmini yuklaysiz.' },
       { icon: Store, title: 'Yangi do‘kon', text: 'Ikkinchi biznesingiz bo‘lsa — ariza qoldirasiz, tasdiqlangach bitta hisobdan ikkalasini boshqarasiz.' },
+      { icon: KeyRound, title: 'Hisobim', text: 'Kirish usullari: Telegram, Google va email. Zaxira usul ulab qo‘ying — telefon yo‘qolsa ham do‘kon qo‘lingizda qoladi.' },
       { icon: BrainCircuit, title: 'Miya', text: 'Butun do‘koningizning jonli 3D ko‘rinishi — buyurtmalar va mijozlar yulduzlardek.' },
     ],
   },
@@ -80,6 +81,8 @@ const FAQ: { q: string; a: ReactNode }[] = [
   { q: 'Dasturlashni bilishim kerakmi?', a: 'Yo‘q. Hammasi tugmalar bilan: forma to‘ldirasiz, mahsulot qo‘shasiz — tamom. Telefonning o‘zi yetadi.' },
   { q: 'Telefondan boshqarsa bo‘ladimi?', a: 'Ha. Boshqaruv paneli telefonga moslangan va Telegram ichida ham ochiladi. Kompyuterda ham ishlaydi.' },
   { q: 'Mahsulotlarni qanday qo‘shaman?', a: 'Boshqaruv paneli → «Mahsulotlar». Bittalab (rasm, narx, o‘lcham bilan) yoki Excel fayl orqali yuzlab mahsulotni birdaniga. Namuna mahsulotlarni o‘chirib, o‘zingiznikini qo‘yasiz.' },
+  { q: 'Boshqa telefondan qanday kiraman?', a: <>O‘sha Telegram hisobi bo‘lsa — @{BOT} → «⚙️ Boshqaruv paneli». Telegram yangi, lekin raqam o‘sha bo‘lsa — botga raqamingizni yuboring, do‘kon o‘zi ulanadi. Panelning <b>«Hisobim»</b> bo‘limida Google yoki email ulab qo‘ysangiz — istalgan qurilmadan shu bilan kirasiz.</> },
+  { q: 'Telegram kanalimga ham yuborsa bo‘ladimi?', a: 'Ha. Botingizni kanalga admin qilib qo‘shing («Xabar joylash» huquqi bilan) — «Ommaviy xabar» bo‘limida kanal o‘zi paydo bo‘ladi, belgilab yuborasiz.' },
   { q: 'Kompyuterda qanday kiraman?', a: <>SavdoGO botidagi «💻 Kompyuterda ochish» tugmasi bir martalik havola beradi. Yoki <b>{PLATFORM.rootDomain}/admin</b> sahifasida «Telegram orqali kirish» ni bosing — botda kodni tasdiqlaysiz, parol kerak emas.</> },
   { q: 'O‘z domenimni ulasa bo‘ladimi?', a: <>Ha. Do‘kon avval <b>nomingiz.{PLATFORM.rootDomain}</b> da ochiladi. To‘lovdan keyin o‘z domeningizni (masalan, kafenur.uz) ulab beramiz.</> },
   { q: 'Sinov tugasa nima bo‘ladi?', a: 'Sayt ochilib turadi, lekin buyurtma qabul qilinmaydi va panelda o‘zgartirib bo‘lmaydi. To‘lov tasdiqlangan zahoti hammasi qaytadi — mahsulot, buyurtma va sozlamalar o‘chmaydi.' },

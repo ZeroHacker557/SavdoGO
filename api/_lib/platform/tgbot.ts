@@ -5,6 +5,7 @@ import { BOT_TOKEN_RE, attachBot } from './bot.js'
 import { esc } from './notify.js'
 import { phoneKey } from './owners.js'
 import { PlatformError } from './errors.js'
+import { trackChat, type ChatMemberUpdate } from '../channels.js'
 
 /**
  * SavdoGO boti — hamma uchun bitta umumiy bot (PLATFORM_BOT_TOKEN).
@@ -268,7 +269,7 @@ export type PlatformUpdate = {
   message?: TgMessage
   callback_query?: { id: string; from: TgFrom; data?: string; message?: TgMessage }
   /** Foydalanuvchi botni bloklasa (kicked) yoki qayta ochsa (member). */
-  my_chat_member?: { chat: { id: number; type: string }; from: TgFrom; new_chat_member?: { status?: string } }
+  my_chat_member?: ChatMemberUpdate & { from: TgFrom }
 }
 
 /**
@@ -373,24 +374,7 @@ async function onCallback(query: NonNullable<PlatformUpdate['callback_query']>) 
     return confirmLoginRequest(chatId, user.uid, query.data.slice('login:'.length))
   }
 
-  if (query.data === 'bot') {
-    await (await tgUserRef(query.from.id)).set({ awaiting: 'bot-token' }, { merge: true })
-    await sendText(
-      chatId,
-      [
-        '🤖 <b>O‘z botingizni ulash — bepul, 2 daqiqa</b>',
-        '',
-        '1. @BotFather ni oching va /newbot yozing',
-        '2. Botga nom bering (masalan, do‘koningiz nomi)',
-        '3. Username bering — oxiri <code>bot</code> bilan tugasin (masalan, <code>kafenur_bot</code>)',
-        '4. BotFather yuborgan <b>tokenni</b> (<code>123456789:AA...</code>) nusxalab, shu yerga yuboring',
-        '',
-        'Token xabari ulangach chatdan o‘chiriladi.',
-      ].join('\n'),
-      [[{ text: '🔑 @BotFather ni ochish', url: 'https://t.me/BotFather' }], [{ text: '⬅️ Menyu', callback_data: 'm' }]],
-    )
-    return
-  }
+  if (query.data === 'bot') return sendBotConnectHelp(chatId, query.from.id)
 
   if (query.data === 'web') {
     const { createLoginLink } = await import('./tglogin.js')
@@ -410,11 +394,32 @@ async function onCallback(query: NonNullable<PlatformUpdate['callback_query']>) 
   }
 }
 
+/** O'z botini ulash yo'riqnomasi; keyingi xabar token deb kutiladi. */
+async function sendBotConnectHelp(chatId: number, telegramId: number) {
+  await (await tgUserRef(telegramId)).set({ awaiting: 'bot-token' }, { merge: true })
+  await sendText(
+    chatId,
+    [
+      '🤖 <b>O‘z botingizni ulash — bepul, 2 daqiqa</b>',
+      '',
+      '1. @BotFather ni oching va /newbot yozing',
+      '2. Botga nom bering (masalan, do‘koningiz nomi)',
+      '3. Username bering — oxiri <code>bot</code> bilan tugasin (masalan, <code>kafenur_bot</code>)',
+      '4. BotFather yuborgan <b>tokenni</b> (<code>123456789:AA...</code>) nusxalab, shu yerga yuboring',
+      '',
+      'Token xabari ulangach chatdan o‘chiriladi.',
+    ].join('\n'),
+    [[{ text: '🔑 @BotFather ni ochish', url: 'https://t.me/BotFather' }], [{ text: '⬅️ Menyu', callback_data: 'm' }]],
+  )
+}
+
 export async function handlePlatformUpdate(update: PlatformUpdate) {
   if (update.callback_query) return onCallback(update.callback_query)
 
   const member = update.my_chat_member
-  if (member && member.chat.type === 'private') {
+  if (member) {
+    // Kanal yoki guruhga qo'shildi/chiqarildi — /super → «Xabar» dagi ro'yxat
+    if (await trackChat((await adminDb()).collection('platformChannels'), member)) return
     const status = member.new_chat_member?.status
     if (status === 'kicked' || status === 'member') {
       await (await tgUserRef(member.from.id)).set({ blocked: status === 'kicked', updatedAt: new Date().toISOString() }, { merge: true })
@@ -439,6 +444,8 @@ export async function handlePlatformUpdate(update: PlatformUpdate) {
     const { approveLoginRequest } = await import('./tglogin.js')
     return approveLoginRequest(message.chat.id, from, user, text.slice('/start login_'.length))
   }
+  // Kanal postidagi «Botni ulash» tugmasi: t.me/<bot>?start=bot
+  if (text === '/start bot' && user.uid) return sendBotConnectHelp(message.chat.id, from.id)
   if (BOT_TOKEN_RE.test(text)) return onBotToken(message, from, user, text)
   if (user.awaiting === 'bot-token' && text && !text.startsWith('/')) {
     await sendText(message.chat.id, 'Bu token emas. BotFather yuborgan xabardagi <code>123456789:AA...</code> ko‘rinishidagi qatorni to‘liq nusxalab yuboring.')

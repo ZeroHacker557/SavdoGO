@@ -3,6 +3,8 @@ import { PlatformError } from './errors.js'
 import { esc } from './notify.js'
 import { publicBase, tgRequest, type TgResponse } from './tgbot.js'
 import type { SuperUser } from './super.js'
+import { PLATFORM } from '../../../src/platform/plans.js'
+import { listChannels, pickChannels } from '../channels.js'
 
 /**
  * /super → «Xabar»: SavdoGO botidagi hamma (yoki tanlangan guruh) ga
@@ -14,6 +16,11 @@ import type { SuperUser } from './super.js'
  * xabar beradi, Vercel funksiyasi ham uzoq ishlamasin. Har bo'lakda faqat
  * `tgUsers` da BOR odamga yoziladi — ro'yxatga begona chat qo'shib bo'lmaydi.
  * Botni bloklaganlar belgilanadi va keyingi xabarlarda o'tkazib yuboriladi.
+ *
+ * Kanal va guruhlar: SavdoGO boti admin qilib qo'shilgan kanallar
+ * (`platformChannels`, channels.ts) ro'yxatda chiqadi, tanlanganlariga ham
+ * yuboriladi. Kanalda mini app tugmasi ishlamaydi — tugmalar botga yoki
+ * saytga havola bo'ladi; `{ism}` o'rniga «do'stlar».
  */
 
 const CAPTION_MAX = 1024
@@ -59,11 +66,12 @@ function shopState(data: Record<string, unknown>): 'trial' | 'active' | 'expired
 
 export async function broadcastAudience() {
   const db = await adminDb()
-  const [tg, index, shops, history] = await Promise.all([
+  const [tg, index, shops, history, channels] = await Promise.all([
     db.collection('tgUsers').get(),
     db.collection('staffIndex').get(),
     db.collection('shops').get(),
     db.collection('platformBroadcasts').orderBy('createdAt', 'desc').limit(15).get(),
+    listChannels(db.collection('platformChannels')),
   ])
   const shopOfUid = new Map(index.docs.map((doc) => [doc.id, String(doc.data().shopId || '')]))
   const shopById = new Map(shops.docs.map((doc) => [doc.id, doc.data()]))
@@ -86,8 +94,10 @@ export async function broadcastAudience() {
 
   return {
     users,
+    channels,
     history: history.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
     testChat: Boolean(process.env.PLATFORM_CHAT_ID),
+    botUsername: PLATFORM.botUsername || null,
   }
 }
 
@@ -121,16 +131,28 @@ function readButtons(value: unknown): Button[] {
   })
 }
 
+/**
+ * Kanal postidagi tugma: mini app va callback u yerda ishlamaydi — o'rniga
+ * botni kerakli joyda ochadigan havola (t.me/<bot>?start=…). Bot nomi
+ * bo'lmasa — saytning o'zi.
+ */
+function channelLink(kind: ButtonKind): string {
+  const bot = PLATFORM.botUsername
+  if (!bot) return `${publicBase()}${kind === 'admin' ? '/admin' : '/start'}`
+  return `https://t.me/${bot}?start=${kind === 'bot' ? 'bot' : kind === 'start' ? 'shop' : 'menu'}`
+}
+
 /** Tugmalar → Telegram qatorlari: «yonma-yon» belgilangani oldingisi bilan bir qatorda (≤ 3 ta). */
-function keyboard(buttons: Button[]): unknown[][] {
+function keyboard(buttons: Button[], channel = false): unknown[][] {
   const base = publicBase()
   const rows: unknown[][] = []
   for (const b of buttons) {
     const button: Record<string, unknown> =
       b.kind === 'url' ? { text: b.text, url: b.url }
-        : b.kind === 'start' ? { text: b.text, web_app: { url: `${base}/start` } }
-          : b.kind === 'admin' ? { text: b.text, web_app: { url: `${base}/admin` } }
-            : { text: b.text, callback_data: b.kind === 'bot' ? 'bot' : 'm' }
+        : channel ? { text: b.text, url: channelLink(b.kind) }
+          : b.kind === 'start' ? { text: b.text, web_app: { url: `${base}/start` } }
+            : b.kind === 'admin' ? { text: b.text, web_app: { url: `${base}/admin` } }
+              : { text: b.text, callback_data: b.kind === 'bot' ? 'bot' : 'm' }
     if (b.style) button.style = b.style
     const last = rows[rows.length - 1]
     if (b.sameRow && last && last.length < PER_ROW) last.push(button)
@@ -144,7 +166,7 @@ function personalize(template: string, firstName: string): string {
   return template.replace(/\{ism\}/gi, esc(firstName || 'do‘st'))
 }
 
-type Content = { body: string; media: Media | null; rows: unknown[][]; options: Options }
+type Content = { body: string; media: Media | null; rows: unknown[][]; channelRows: unknown[][]; options: Options }
 
 function readContent(input: Record<string, unknown>): Content {
   const body = text(input.text, TEXT_MAX + 100)
@@ -152,10 +174,12 @@ function readContent(input: Record<string, unknown>): Content {
   if (!body && !media) throw new PlatformError('Xabar matni bo‘sh')
   if (body.length > TEXT_MAX) throw new PlatformError(`Xabar juda uzun (${TEXT_MAX} belgigacha)`)
   const raw = (input.options ?? {}) as Record<string, unknown>
+  const buttons = readButtons(input.buttons)
   return {
     body,
     media,
-    rows: keyboard(readButtons(input.buttons)),
+    rows: keyboard(buttons),
+    channelRows: keyboard(buttons, true),
     options: { silent: raw.silent === true, protect: raw.protect === true, noPreview: raw.noPreview === true },
   }
 }
@@ -166,15 +190,16 @@ type Delivery = { ok: boolean; blocked: boolean; fileId: string | null; error: T
  * Bitta odamga. Rasm/video bo'lsa matn uning izohi; izoh 1024 belgidan
  * oshsa — avval rasm, keyin matn tugmalar bilan alohida xabar.
  */
-async function deliver(chatId: string, firstName: string, content: Content, fileId: string | null): Promise<Delivery> {
+async function deliver(chatId: string, firstName: string, content: Content, fileId: string | null, channel = false): Promise<Delivery> {
   const body = personalize(content.body, firstName)
+  const rows = channel ? content.channelRows : content.rows
   const common: Record<string, unknown> = {
     chat_id: chatId,
     parse_mode: 'HTML',
     ...(content.options.silent ? { disable_notification: true } : {}),
     ...(content.options.protect ? { protect_content: true } : {}),
   }
-  const markup = content.rows.length ? { reply_markup: { inline_keyboard: content.rows } } : {}
+  const markup = rows.length ? { reply_markup: { inline_keyboard: rows } } : {}
   let result: TgResponse<Record<string, unknown>>
   let newFileId = fileId
 
@@ -226,16 +251,29 @@ export async function broadcastSend(_user: SuperUser, input: Record<string, unkn
     return { sent: 1, failed: 0, blocked: 0, skipped: 0, mediaId: result.fileId }
   }
 
-  if (!Array.isArray(input.recipients)) throw new PlatformError('Qabul qiluvchilar ro‘yxati yo‘q')
-  const ids = [...new Set(input.recipients.map((v) => String(v).trim()).filter((v) => /^\d{3,20}$/.test(v)))]
+  const db = await adminDb()
+
+  // Kanal va guruhlar — faqat ro'yxatdagilari (bot o'zi qo'shilgan joylar)
+  let channelsSent = 0
+  const channelErrors: string[] = []
+  const channels = await pickChannels(db.collection('platformChannels'), input.channels)
+  for (const channel of channels) {
+    const result = await deliver(channel.id, 'do‘stlar', content, fileId, true)
+    fileId = result.fileId
+    if (result.ok) channelsSent++
+    else channelErrors.push(`${channel.title}: ${result.error?.description || 'Telegram rad etdi'}`)
+  }
+
+  const recipients = Array.isArray(input.recipients) ? input.recipients : []
+  if (!channels.length && !Array.isArray(input.recipients)) throw new PlatformError('Qabul qiluvchilar ro‘yxati yo‘q')
+  const ids = [...new Set(recipients.map((v) => String(v).trim()).filter((v) => /^\d{3,20}$/.test(v)))]
   if (ids.length > CHUNK_MAX) throw new PlatformError(`Bir bo‘lakda ${CHUNK_MAX} tadan ko‘p bo‘lmaydi`)
 
-  const db = await adminDb()
   const snaps = ids.length ? await db.getAll(...ids.map((id) => db.collection('tgUsers').doc(id))) : []
   let sent = 0
   let failed = 0
   let blocked = 0
-  let skipped = input.recipients.length - ids.length
+  let skipped = recipients.length - ids.length
 
   for (const snap of snaps) {
     const data = snap.data()
@@ -253,7 +291,7 @@ export async function broadcastSend(_user: SuperUser, input: Record<string, unkn
     // Telegram: soniyasiga ~30 xabar
     await new Promise((resolve) => setTimeout(resolve, 40))
   }
-  return { sent, failed, blocked, skipped, mediaId: fileId }
+  return { sent, failed, blocked, skipped, channelsSent, channelErrors, mediaId: fileId }
 }
 
 /** Yuborish tugagach (yoki to'xtatilganda) — tarixga. */
@@ -274,6 +312,7 @@ export async function broadcastLog(user: SuperUser, input: Record<string, unknow
     preview: body.replace(/<[^>]+>/g, '').slice(0, 160),
     media: input.media === 'image' || input.media === 'video' ? input.media : null,
     buttons: n(input.buttons),
+    channels: n(input.channels),
   })
   // Eski yozuvlar to'planib qolmasin
   const old = await db.collection('platformBroadcasts').where('createdAt', '<', new Date(Date.now() - 180 * DAY).toISOString()).limit(50).get()

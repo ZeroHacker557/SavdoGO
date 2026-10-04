@@ -88,9 +88,18 @@ Firebase Console → **Authentication → Settings → Authorized domains** ga
 SavdoGO botidagi hammaga yoki guruhga (do'kon egalari, sinovdagilar, muddati
 tugaganlar, do'kon ochmaganlar...): rasm/video, formatlangan matn, `{ism}`,
 rangli inline tugmalar (havola, «Do'kon ochish», «Boshqaruv paneli»...),
-ovozsiz yuborish, uzatishni taqiqlash, tayyor shablonlar. «Menga sinov» —
+ovozsiz yuborish, uzatishni taqiqlash, tayyor shablonlar. Kanal va guruhlar: botni
+kanalga admin qilib qo'shsangiz, ro'yxatda o'zi chiqadi (do'kon egasining «Ommaviy xabar»
+bo'limida ham xuddi shunday). «Menga sinov» —
 `PLATFORM_CHAT_ID` ga. Botni bloklaganlar o'zi belgilanadi va o'tkazib yuboriladi.
 Rasm/video `platform/broadcast/` ga yuklanadi (storage.rules — faqat super-admin).
+
+### Kirish usullari («Hisobim»)
+
+Telegram orqali ochilgan egada email/parol yo'q. Panel → **Hisobim** da Google
+yoki email+parol ulaydi (Firebase Console → Authentication → Sign-in method da
+Google yoqilgan bo'lishi kerak). Hammasi yo'qolsa: `/super` → do'kon →
+**Kirish havolasini yaratish** — 10 daqiqalik bir martalik havola.
 
 ### Do'konning o'z boti — «Telegram va kuryerlar» (bepul)
 

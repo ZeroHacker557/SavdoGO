@@ -2367,3 +2367,19 @@
   font-size: 0.68rem;
   font-weight: 800;
 }
+
+/* Ommaviy xabar: kanal va guruhlar ro'yxati */
+.adm-bc-channels { display: grid; gap: 8px; }
+.adm-bc-channel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.adm-bc-channel b { display: block; font-size: 0.86rem; }
+.adm-bc-channel small { display: block; color: var(--muted); font-size: 0.74rem; }
+.adm-bc-channel.is-on { border-color: var(--brand); background: var(--brand-soft); }
+.adm-bc-channel.is-off { cursor: not-allowed; opacity: 0.6; }

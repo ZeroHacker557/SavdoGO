@@ -40,10 +40,20 @@ type HistoryRow = {
   preview: string
   media: 'image' | 'video' | null
 }
-type AudienceData = { users: AudienceRow[]; history: HistoryRow[]; testChat: boolean }
-type ChunkResult = { sent: number; failed: number; blocked: number; skipped: number; mediaId: string | null }
+/** SavdoGO boti admin qilib qo'shilgan kanal/guruh (api/_lib/channels.ts). */
+type ChannelRow = { id: string; title: string; username: string | null; type: 'channel' | 'group' | 'supergroup'; canPost: boolean }
+type AudienceData = { users: AudienceRow[]; channels: ChannelRow[]; history: HistoryRow[]; testChat: boolean }
+type ChunkResult = {
+  sent: number
+  failed: number
+  blocked: number
+  skipped: number
+  channelsSent?: number
+  channelErrors?: string[]
+  mediaId: string | null
+}
 
-type Audience = 'all' | 'owners' | 'trial' | 'expired' | 'noShop' | 'started' | 'recent' | 'manual'
+type Audience = 'all' | 'owners' | 'trial' | 'expired' | 'noShop' | 'started' | 'recent' | 'manual' | 'none'
 const DAY = 86_400_000
 
 const AUDIENCES: { key: Audience; label: string; hint: string; match: (u: AudienceRow, now: number) => boolean }[] = [
@@ -55,6 +65,7 @@ const AUDIENCES: { key: Audience; label: string; hint: string; match: (u: Audien
   { key: 'started', label: 'Faqat /start bosganlar', hint: 'Raqam ham yubormagan — eng sovuq auditoriya', match: (u) => !u.hasPhone && !u.shop },
   { key: 'recent', label: 'So‘nggi 7 kunda faol', hint: 'Botga yaqinda yozganlar', match: (u, now) => (Date.parse(u.lastSeen || '') || 0) > now - 7 * DAY },
   { key: 'manual', label: 'Qo‘lda tanlash', hint: 'Ro‘yxatdan kerakli odamlarni belgilang', match: () => false },
+  { key: 'none', label: 'Faqat kanalga', hint: 'Odamlarga emas — faqat pastda belgilangan kanal va guruhlarga', match: () => false },
 ]
 
 /** Tugma: havola yoki bot ichidagi amal (mini app / menyu). */
@@ -207,12 +218,21 @@ export function Broadcast({ api, show }: { api: Api; show: Show }) {
 
   const [audience, setAudience] = useState<Audience>('all')
   const [manual, setManual] = useState<string[]>([])
+  const [pickedChannels, setPickedChannels] = useState<string[]>([])
   const [search, setSearch] = useState('')
 
   const [confirming, setConfirming] = useState(false)
   const [testing, setTesting] = useState(false)
   const [running, setRunning] = useState(false)
-  const [progress, setProgress] = useState<{ sent: number; failed: number; blocked: number; skipped: number; processed: number } | null>(null)
+  const [progress, setProgress] = useState<{
+    sent: number
+    failed: number
+    blocked: number
+    skipped: number
+    processed: number
+    channelsSent: number
+    channelErrors: string[]
+  } | null>(null)
   const cancelled = useRef(false)
   const textRef = useRef<HTMLTextAreaElement>(null)
   const [now] = useState(() => Date.now())
@@ -241,7 +261,11 @@ export function Broadcast({ api, show }: { api: Api; show: Show }) {
     for (const a of AUDIENCES) result[a.key] = a.key === 'manual' ? manual.length : reachable.filter((u) => a.match(u, now)).length
     return result
   }, [reachable, manual, now])
+  const channels = useMemo(() => data?.channels ?? [], [data])
+  // Kanal ro'yxatdan chiqib ketgan bo'lsa (bot chiqarilgan) — tanlovdan ham
+  const selectedChannels = useMemo(() => channels.filter((c) => c.canPost && pickedChannels.includes(c.id)), [channels, pickedChannels])
   const recipients = useMemo(() => {
+    if (audience === 'none') return []
     if (audience === 'manual') return reachable.filter((u) => manual.includes(u.id))
     const rule = AUDIENCES.find((a) => a.key === audience)!
     return reachable.filter((u) => rule.match(u, now))
@@ -314,11 +338,24 @@ export function Broadcast({ api, show }: { api: Api; show: Show }) {
     setRunning(true)
     cancelled.current = false
     const ids = recipients.map((u) => u.id)
-    const totals = { sent: 0, failed: 0, blocked: 0, skipped: 0, processed: 0 }
+    const totals = { sent: 0, failed: 0, blocked: 0, skipped: 0, processed: 0, channelsSent: 0, channelErrors: [] as string[] }
     setProgress({ ...totals })
     let mediaId: string | null = null
     const body = content()
     try {
+      // Avval kanallar — bitta so'rovda
+      if (selectedChannels.length) {
+        const result = await api<ChunkResult>('super.broadcast.send', {
+          ...body,
+          media: media ? { ...media, fileId: mediaId } : null,
+          channels: selectedChannels.map((c) => c.id),
+          recipients: [],
+        })
+        mediaId = result.mediaId ?? mediaId
+        totals.channelsSent = result.channelsSent ?? 0
+        totals.channelErrors = result.channelErrors ?? []
+        setProgress({ ...totals })
+      }
       for (let i = 0; i < ids.length && !cancelled.current; i += CHUNK) {
         const chunk = ids.slice(i, i + CHUNK)
         const result: ChunkResult = await api<ChunkResult>(
@@ -333,7 +370,8 @@ export function Broadcast({ api, show }: { api: Api; show: Show }) {
         totals.processed += chunk.length
         setProgress({ ...totals })
       }
-      show(cancelled.current ? `To‘xtatildi — ${totals.sent} ta yuborildi` : `Tayyor: ${totals.sent} ta yuborildi`)
+      const toChannels = selectedChannels.length ? `, kanallarga: ${totals.channelsSent}/${selectedChannels.length}` : ''
+      show(cancelled.current ? `To‘xtatildi — ${totals.sent} ta yuborildi${toChannels}` : `Tayyor: ${totals.sent} ta yuborildi${toChannels}`)
     } catch (error) {
       show(error instanceof Error ? error.message : 'Yuborishda xato', 'error')
     } finally {
@@ -342,7 +380,11 @@ export function Broadcast({ api, show }: { api: Api; show: Show }) {
         text,
         audience: AUDIENCES.find((a) => a.key === audience)?.label ?? audience,
         total: ids.length,
-        ...totals,
+        sent: totals.sent,
+        failed: totals.failed,
+        blocked: totals.blocked,
+        skipped: totals.skipped,
+        channels: totals.channelsSent,
         stopped: cancelled.current,
         media: media?.type ?? null,
         buttons: buttons.length,
@@ -359,7 +401,11 @@ export function Broadcast({ api, show }: { api: Api; show: Show }) {
   const buttonsInvalid = buttons.some((b) => buttonError(b))
   const longCaption = Boolean(media) && plainLength(text) > CAPTION_MAX
   const empty = !text.trim() && !media
-  const blocked = running || uploading || buttonsInvalid || empty || recipients.length === 0
+  const blocked = running || uploading || buttonsInvalid || empty || (recipients.length === 0 && selectedChannels.length === 0)
+  const target = [
+    recipients.length ? `${recipients.length} kishiga` : '',
+    selectedChannels.length ? `${selectedChannels.length} ta kanalga` : '',
+  ].filter(Boolean).join(' va ')
 
   if (!data) {
     return loadError ? (
@@ -591,6 +637,40 @@ export function Broadcast({ api, show }: { api: Api; show: Show }) {
           )}
         </div>
 
+        {/* Kanal va guruhlar — bot admin qilib qo'shilganlari o'zi chiqadi */}
+        <div>
+          <p className="adm-label">Kanal va guruhlar</p>
+          {channels.length ? (
+            <div className="sp-bc-channels">
+              {channels.map((c) => (
+                <label key={c.id} className={'sp-bc-channel' + (c.canPost ? '' : ' is-off') + (pickedChannels.includes(c.id) && c.canPost ? ' is-on' : '')}>
+                  <input
+                    type="checkbox"
+                    checked={pickedChannels.includes(c.id) && c.canPost}
+                    disabled={!c.canPost || running}
+                    onChange={() => setPickedChannels(pickedChannels.includes(c.id) ? pickedChannels.filter((id) => id !== c.id) : [...pickedChannels, c.id])}
+                  />
+                  <span>
+                    <b>{c.type === 'channel' ? '📢' : '👥'} {c.title}</b>
+                    <small>
+                      {c.username ? `@${c.username}` : c.type === 'channel' ? 'Yopiq kanal' : 'Guruh'}
+                      {!c.canPost && ' · botda «xabar joylash» huquqi yo‘q'}
+                    </small>
+                  </span>
+                </label>
+              ))}
+              <p className="text-xs" style={{ color: 'var(--faint)' }}>
+                Kanalda tugmalar botga havola bo‘lib chiqadi, <code>{'{ism}'}</code> o‘rniga «do‘stlar» qo‘yiladi.
+              </p>
+            </div>
+          ) : (
+            <p className="sp-bc-hint">
+              Kanalingizga ham yuborish uchun <b>@{PLATFORM.botUsername || 'bot'}</b> ni kanalga admin qilib qo‘shing
+              («Xabar joylash» huquqi bilan) — kanal shu yerda o‘zi paydo bo‘ladi. Bot kanalda allaqachon bo‘lsa — uni chiqarib, qayta qo‘shing. Keyin o‘ngdagi yangilash tugmasini bosing.
+            </p>
+          )}
+        </div>
+
         {/* Yuborish */}
         <div className="grid gap-2 sm:grid-cols-[auto_1fr]">
           <button
@@ -603,7 +683,7 @@ export function Broadcast({ api, show }: { api: Api; show: Show }) {
           </button>
           <button className="adm-btn adm-btn--primary py-3" onClick={() => setConfirming(true)} disabled={blocked}>
             <Send size={17} />
-            {running ? 'Yuborilmoqda...' : recipients.length ? `${recipients.length} kishiga yuborish` : 'Qabul qiluvchi yo‘q'}
+            {running ? 'Yuborilmoqda...' : target ? `${target} yuborish` : 'Qabul qiluvchi yo‘q'}
           </button>
         </div>
         {!data.testChat && (
@@ -670,7 +750,13 @@ export function Broadcast({ api, show }: { api: Api; show: Show }) {
               <Line icon={<ShieldBan size={15} />} label="Botni bloklagan" value={progress.blocked} tone="var(--danger)" />
               <Line icon={<XCircle size={15} />} label="Yetmadi (boshqa xato)" value={progress.failed} tone="var(--warning)" />
               <Line icon={<Megaphone size={15} />} label="O‘tkazib yuborildi" value={progress.skipped} tone="var(--muted)" />
+              {selectedChannels.length > 0 && (
+                <Line icon={<Send size={15} />} label="Kanal va guruhlarga" value={progress.channelsSent} tone="var(--brand)" />
+              )}
             </div>
+            {progress.channelErrors.map((e) => (
+              <p key={e} className="mt-2 text-xs" style={{ color: 'var(--danger)' }}>{e}</p>
+            ))}
             <div className="mt-3 h-1.5 overflow-hidden rounded-full" style={{ background: 'var(--surface-3)' }}>
               <div
                 className="h-full rounded-full"
@@ -711,7 +797,7 @@ export function Broadcast({ api, show }: { api: Api; show: Show }) {
       {confirming && (
         <ConfirmDialog
           title="Ommaviy xabar yuborilsinmi?"
-          message={`Xabar SavdoGO botidagi ${recipients.length} kishiga boradi. Yuborilgan xabarni qaytarib bo‘lmaydi.`}
+          message={`Xabar ${target || 'hech kimga'} boradi${selectedChannels.length ? ` (${selectedChannels.map((c) => c.title).join(', ')})` : ''}. Yuborilgan xabarni qaytarib bo‘lmaydi.`}
           confirmLabel="Ha, yuborilsin"
           onConfirm={start}
           onClose={() => setConfirming(false)}

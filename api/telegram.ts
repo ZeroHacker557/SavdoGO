@@ -8,6 +8,7 @@ import { escapeHtml, sendMessage, sendRows } from './_lib/telegram.js'
 import { saveCourierLocation } from './_lib/actions/location.js'
 import { canDeliver } from './_lib/courier-staff.js'
 import type { Staff, StaffRole } from './_lib/admin-auth.js'
+import { trackChat, type ChatMemberUpdate } from './_lib/channels.js'
 import { handlePlatformUpdate, platformToken, platformWebhookSecret, type PlatformUpdate } from './_lib/platform/tgbot.js'
 
 /**
@@ -54,10 +55,12 @@ type TgUpdate = {
   message?: TgMessage
   edited_message?: TgMessage
   callback_query?: { id: string; from: TgUser; data?: string; message?: TgMessage }
+  /** Bot kanal yoki guruhga qo'shildi / chiqarildi. */
+  my_chat_member?: ChatMemberUpdate
 }
 
 async function tg(token: string, method: string, body: Record<string, unknown>) {
-  await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+  await fetch(`${process.env.TELEGRAM_API_URL || 'https://api.telegram.org'}/bot${token}/${method}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -255,7 +258,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const update = (req.body ?? {}) as TgUpdate
 
     await withShop(context, async () => {
-      if (update.callback_query) await onCallback(token, shopId, update.callback_query)
+      if (update.my_chat_member) await trackChat((await shopDoc()).collection('channels'), update.my_chat_member)
+      else if (update.callback_query) await onCallback(token, shopId, update.callback_query)
       else if (update.edited_message?.location) await onLocation(shopId, update.edited_message, true)
       else if (update.message?.location) await onLocation(shopId, update.message, false)
       else if (update.message) await onMessage(token, context.shopName, update.message)

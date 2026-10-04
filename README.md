@@ -104,6 +104,8 @@ tgUsers/{telegramId}        SavdoGO botidagi foydalanuvchi: tasdiqlangan telefon
 loginCodes/{sha256}         bir martalik kirish havolalari (10 daqiqa)
 loginRequests/{nonce}       kompyuterdagi «Telegram orqali kirish» so'rovlari (5 daqiqa)
 platformBroadcasts/{id}     /super dan yuborilgan ommaviy xabarlar tarixi (180 kun)
+platformChannels/{chatId}   SavdoGO boti admin bo'lgan kanal/guruhlar (ommaviy xabar uchun)
+shops/{id}/channels/{chatId} do'kon boti admin bo'lgan kanal/guruhlar
 staffIndex/{uid}            xodim qaysi do'konniki (shopId — faol, shops — hammasi)
 ownerPhones/{998...}        egasining telefoni band — «bitta ega — bitta do'kon»
 shopRequests/{id}           ikkinchi do'kon arizalari (pending → approved → used)

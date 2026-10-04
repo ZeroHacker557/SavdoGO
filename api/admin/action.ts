@@ -6,7 +6,7 @@ import {
   categoryDelete, categorySave, orderSave, productBulkUpdate, productDelete, productSave,
   promoDelete, promoSave, requireCatalogAccess,
 } from '../_lib/actions/catalog.js'
-import { broadcast, staffDelete, staffLinkTelegram, staffSave } from '../_lib/actions/people.js'
+import { broadcast, broadcastChannels, staffDelete, staffLinkTelegram, staffSave } from '../_lib/actions/people.js'
 import { catalogLayout, sectionDelete, sectionSave } from '../_lib/actions/sections.js'
 import { promotionDelete, promotionSave } from '../_lib/actions/promotions.js'
 import { adSave } from '../_lib/actions/ads.js'
@@ -16,6 +16,7 @@ import { supportAdminRead, supportClose, supportReply } from '../_lib/actions/su
 import { cashConfirm, cashReject } from '../_lib/actions/cash.js'
 import { demoCleanup } from '../_lib/actions/demo.js'
 import { botConnect, botDisconnect } from '../_lib/actions/bot.js'
+import { accountLoginLink, accountSync } from '../_lib/actions/account.js'
 import { loadShopContext, withShop } from '../_lib/context.js'
 import { adminDb } from '../_lib/firebase-admin.js'
 import { PaymentRequiredError, isShopActive, readShopState } from '../_lib/tenant.js'
@@ -66,6 +67,7 @@ const HANDLERS: Record<string, Handler> = {
   'staff.linkTelegram': staffLinkTelegram,
   'staff.delete': staffDelete,
   'broadcast.send': broadcast,
+  'broadcast.channels': broadcastChannels,
 
   // Kuryerlar bilan qo'llab-quvvatlash chati — javobni admin beradi
   'support.reply': (staff, body) => (requireSupportAccess(staff), supportReply(staff, body)),
@@ -80,6 +82,10 @@ const HANDLERS: Record<string, Handler> = {
   'settings.save': settingsSave,
   'settings.testGroup': settingsTestGroup,
 
+  // «Hisobim»: zaxira kirish usullari (Google, email)
+  'account.sync': (staff) => accountSync(staff),
+  'account.loginLink': (staff) => accountLoginLink(staff),
+
   // O'z Telegram botini ulash (bepul) — faqat ega
   'bot.connect': botConnect,
   'bot.disconnect': botDisconnect,
@@ -93,7 +99,7 @@ const HANDLERS: Record<string, Handler> = {
  * qiladi — ro'yxat oq ro'yxat (whitelist): yangi amal qo'shilsa, u
  * sukut bo'yicha qulflangan bo'ladi.
  */
-const FREE_ACTIONS = new Set(['staff.linkTelegram', 'bot.connect', 'bot.disconnect'])
+const FREE_ACTIONS = new Set(['staff.linkTelegram', 'bot.connect', 'bot.disconnect', 'account.sync', 'account.loginLink'])
 
 /**
  * Do'konning o'z Telegram boti bilan ishlaydigan amallar (bot ulash bepul).
@@ -104,7 +110,7 @@ const ADDON_ACTIONS = new Set([
   'order.assign', 'courier.take', 'courier.deliver',
   'support.reply', 'support.read', 'support.close',
   'cash.confirm', 'cash.reject',
-  'broadcast.send', 'settings.testGroup',
+  'broadcast.send', 'broadcast.channels', 'settings.testGroup',
 ])
 
 function needsAddon(action: string, body: Body): boolean {

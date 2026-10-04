@@ -1,6 +1,6 @@
 import {
   BarChart3, BrainCircuit, Boxes, Check, ChevronsUpDown, Clapperboard, CreditCard, ExternalLink, Eye, FileBarChart, Flame,
-  Gift, Globe, Headset, Layers, LayoutGrid, Loader2, LogOut, Map as MapIcon, Maximize2, Wallet, Megaphone, Menu, Minimize2,
+  Gift, Globe, Headset, KeyRound, Layers, LayoutGrid, Loader2, LogOut, Map as MapIcon, Maximize2, Wallet, Megaphone, Menu, Minimize2,
   Moon, Palette, Plus, Settings, Send, ShoppingBag, Store, Sun, Tag, Users, UserCog, X,
 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
@@ -56,6 +56,8 @@ const NAV: NavEntry[] = [
   { route: 'settings', label: 'Yetkazish va to‘lov', icon: Settings, min: 'owner' },
   { route: 'billing', label: 'Obuna va to‘lov', icon: CreditCard, min: 'owner' },
   { route: 'newshop', label: 'Yangi do‘kon', icon: Store, min: 'owner' },
+  // Zaxira kirish usullari (Google, email) — hamma xodimga
+  { route: 'account', label: 'Hisobim', icon: KeyRound, min: 'courier' },
 
   // Eng pastda — butun tizimning galaktika ko'rinishi
   { route: 'brain', label: 'Miya', icon: BrainCircuit, min: 'admin', special: true },
@@ -82,6 +84,7 @@ const TITLES: Record<Route, string> = {
   billing: 'Obuna va to‘lov',
   telegram: 'Kuryerlar va Telegram',
   newshop: 'Yangi do‘kon',
+  account: 'Hisobim — kirish usullari',
   brain: 'Miya',
 }
 

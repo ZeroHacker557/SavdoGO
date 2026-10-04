@@ -7,6 +7,7 @@ import { connectBot, disconnectBot } from './bot.js'
 import { superRequests } from './owners.js'
 import { runTx } from '../firestore-tx.js'
 import { deleteShopCompletely } from './delete-shop.js'
+import { createLoginLink } from './tglogin.js'
 
 /**
  * Platforma egasi (super-admin) amallari.
@@ -266,6 +267,22 @@ export async function shopDelete(user: SuperUser, body: Record<string, unknown>)
   const result = await deleteShopCompletely(shopId)
   console.log(`[super] ${user.email || user.uid} do‘konni o‘chirdi: ${shopId}`)
   return result
+}
+
+/**
+ * Egasi kira olmay qolsa (Telegram ham, raqam ham, email ham yo'q) — siz
+ * shaxsini tekshirib, shu 10 daqiqalik bir martalik havolani berasiz.
+ * Havola egasini «Hisobim» bo'limiga olib boradi — u zaxira usul ulaydi.
+ */
+export async function shopLoginLink(user: SuperUser, body: Record<string, unknown>) {
+  const shopId = String(body.shopId || '').trim().toLowerCase()
+  const db = await adminDb()
+  const shop = (await db.collection('shops').doc(shopId).get()).data()
+  const ownerUid = typeof shop?.ownerUid === 'string' ? shop.ownerUid : ''
+  if (!ownerUid) throw new PlatformError('Do‘kon egasi topilmadi', 404)
+  const url = await createLoginLink(ownerUid)
+  console.log(`[super] ${user.email || user.uid} kirish havolasi yaratdi: ${shopId}`)
+  return { url: `${url}&open=account` }
 }
 
 export async function settingsSave(user: SuperUser, body: Record<string, unknown>) {

@@ -21,6 +21,13 @@ const TG = `${process.env.TELEGRAM_API_URL || 'https://api.telegram.org'}/bot`
 /** BotFather tokeni: «123456789:AA...». */
 export const BOT_TOKEN_RE = /^\d{5,}:[A-Za-z0-9_-]{30,}$/
 
+/**
+ * Do'kon boti oladigan hodisalar:
+ *   edited_message — kuryerning «Jonli joylashuv» yangilanishlari
+ *   my_chat_member — bot kanal/guruhga qo'shilsa, ommaviy xabar ro'yxatiga tushadi (channels.ts)
+ */
+const ALLOWED_UPDATES = ['message', 'edited_message', 'callback_query', 'my_chat_member']
+
 async function call<T>(token: string, method: string, body: Record<string, unknown> = {}): Promise<T> {
   const response = await fetch(`${TG}${token}/${method}`, {
     method: 'POST',
@@ -76,8 +83,7 @@ export async function connectBot(shopId: string, token: string, shopName: string
   await call(token, 'setWebhook', {
     url: `${baseUrl()}/api/telegram?shop=${encodeURIComponent(shopId)}`,
     secret_token: secret,
-    // edited_message — kuryerning «Jonli joylashuv» yangilanishlari shu bo'lib keladi
-    allowed_updates: ['message', 'edited_message', 'callback_query'],
+    allowed_updates: ALLOWED_UPDATES,
     drop_pending_updates: true,
   })
   await call(token, 'setChatMenuButton', {
@@ -91,6 +97,31 @@ export async function connectBot(shopId: string, token: string, shopName: string
   batch.set(indexRef, { shopId, username: me.username, connectedAt: now })
   await batch.commit()
   return { botUsername: me.username }
+}
+
+/**
+ * Eski ulangan botlar: `my_chat_member` qo'shilishidan oldin ulangan bot
+ * kanal hodisalarini olmaydi. Ommaviy xabar sahifasi ochilganda tekshiriladi
+ * va kerak bo'lsa webhook o'sha manzil va sir bilan yangilanadi.
+ * Xato tashlamaydi — sahifa baribir ochilsin.
+ */
+export async function refreshBotWebhook(shopId: string): Promise<void> {
+  try {
+    const db = await adminDb()
+    const secrets = (await db.collection('shopSecrets').doc(shopId).get()).data()
+    const token = String(secrets?.botToken || '')
+    const secret = String(secrets?.webhookSecret || '')
+    if (!token || !secret) return
+    const info = await call<{ url?: string; allowed_updates?: string[] }>(token, 'getWebhookInfo')
+    if (ALLOWED_UPDATES.every((u) => info.allowed_updates?.includes(u))) return
+    await call(token, 'setWebhook', {
+      url: info.url || `${baseUrl()}/api/telegram?shop=${encodeURIComponent(shopId)}`,
+      secret_token: secret,
+      allowed_updates: ALLOWED_UPDATES,
+    })
+  } catch (error) {
+    console.warn('[bot] webhook yangilanmadi:', error)
+  }
 }
 
 export async function disconnectBot(shopId: string) {

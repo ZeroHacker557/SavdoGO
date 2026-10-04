@@ -1,10 +1,11 @@
 import {
   CheckCircle2, ExternalLink, ImagePlus, Loader2, Megaphone, Plus, Search, Send, Smartphone, Trash2, Users, X, XCircle,
 } from 'lucide-react'
-import { useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { uploadBroadcastMedia, type UploadedAdMedia } from '../lib/storage'
 import { apiPost } from '../lib/api'
 import { useCategories, useCustomers, useOrders, useProducts, useSections, type CustomerRow } from '../lib/live'
+import { useAdminShop } from '../lib/shop'
 import { ConfirmDialog } from '../components/Modal'
 import { useToast } from '../components/Toast'
 
@@ -17,7 +18,7 @@ import { useToast } from '../components/Toast'
  * tayyor identifikatorlar bo'laklab ketadi, server esa ular bazada
  * borligini tekshiradi.
  */
-type Audience = 'all' | 'buyers' | 'never' | 'category' | 'product' | 'lapsed' | 'active' | 'manual'
+type Audience = 'all' | 'buyers' | 'never' | 'category' | 'product' | 'lapsed' | 'active' | 'manual' | 'none'
 
 const AUDIENCES: { key: Audience; label: string; hint: string }[] = [
   { key: 'all', label: 'Hamma', hint: 'Botni ishga tushirgan barcha foydalanuvchilar' },
@@ -28,9 +29,13 @@ const AUDIENCES: { key: Audience; label: string; hint: string }[] = [
   { key: 'lapsed', label: 'Uzoq vaqt buyurtma bermaganlar', hint: 'Avval olgan, lekin so‘nggi kunlarda qaytmaganlar — «sizni sog‘indik»' },
   { key: 'active', label: 'Yaqinda ilovaga kirganlar', hint: 'So‘nggi kunlarda ilovani ochganlar' },
   { key: 'manual', label: 'Qo‘lda tanlash', hint: 'Ro‘yxatdan kerakli mijozlarni belgilang' },
+  { key: 'none', label: 'Faqat kanalga', hint: 'Mijozlarga emas — faqat pastda belgilangan kanal va guruhlarga' },
 ]
 
-type Progress = { sent: number; failed: number; skipped: number; processed: number }
+/** Do'kon boti admin qilib qo'shilgan kanal/guruh (api/_lib/channels.ts). */
+type ChannelRow = { id: string; title: string; username: string | null; type: 'channel' | 'group' | 'supergroup'; canPost: boolean }
+
+type Progress = { sent: number; failed: number; skipped: number; processed: number; channelsSent: number; channelErrors: string[] }
 
 /** Mini ilovada qayer ochiladi. */
 type Target = 'home' | 'catalog' | 'category' | 'section' | 'product' | 'orders' | 'favorites'
@@ -118,6 +123,25 @@ export function BroadcastPage() {
   const [uploading, setUploading] = useState(false)
   const [buttons, setButtons] = useState<ButtonDraft[]>([])
 
+  const shop = useAdminShop()
+  // Kanallar ro'yxati serverda (do'kon boti qo'shilgan joylar)
+  const [channels, setChannels] = useState<ChannelRow[]>([])
+  const [channelsTick, setChannelsTick] = useState(0)
+  const [pickedChannels, setPickedChannels] = useState<string[]>([])
+  useEffect(() => {
+    let alive = true
+    apiPost<{ channels: ChannelRow[] }>('action', { action: 'broadcast.channels' }).then(
+      (result) => {
+        if (alive) setChannels(result.channels)
+      },
+      () => undefined,
+    )
+    return () => {
+      alive = false
+    }
+  }, [channelsTick])
+  const selectedChannels = channels.filter((c) => c.canPost && pickedChannels.includes(c.id))
+
   const [confirming, setConfirming] = useState(false)
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState<Progress | null>(null)
@@ -144,6 +168,7 @@ export function BroadcastPage() {
 
   const recipients = useMemo(() => {
     const period = Math.max(1, Number(days) || 30) * DAY
+    if (audience === 'none') return []
     return customers.filter((c) => {
       const h = history.get(c.id)
       switch (audience) {
@@ -164,7 +189,7 @@ export function BroadcastPage() {
     setRunning(true)
     cancelled.current = false
     const ids = recipients.map((c) => c.id)
-    const totals: Progress = { sent: 0, failed: 0, skipped: 0, processed: 0 }
+    const totals: Progress = { sent: 0, failed: 0, skipped: 0, processed: 0, channelsSent: 0, channelErrors: [] }
     setProgress({ ...totals })
     // Birinchi bo'lakdan keyin Telegram fayl id'sini qaytaradi — qolganlariga shu ketadi
     let mediaId: string | null = null
@@ -178,6 +203,21 @@ export function BroadcastPage() {
     }))
 
     try {
+      // Avval kanallar — bitta so'rovda
+      if (selectedChannels.length) {
+        const result: { channelsSent?: number; channelErrors?: string[]; mediaId?: string | null } = await apiPost('action', {
+          action: 'broadcast.send',
+          text,
+          textRu,
+          media: media ? { ...media, fileId: mediaId } : null,
+          buttons: cleanButtons,
+          channels: selectedChannels.map((c) => c.id),
+        })
+        mediaId = result.mediaId ?? mediaId
+        totals.channelsSent = result.channelsSent ?? 0
+        totals.channelErrors = result.channelErrors ?? []
+        setProgress({ ...totals })
+      }
       for (let i = 0; i < ids.length && !cancelled.current; i += CHUNK) {
         const result: Progress & { mediaId?: string | null } = await apiPost('action', {
           action: 'broadcast.send',
@@ -197,7 +237,7 @@ export function BroadcastPage() {
       show(
         cancelled.current
           ? `To‘xtatildi — ${totals.sent} ta yuborildi`
-          : `Tayyor: ${totals.sent} ta yuborildi, ${totals.failed} ta yetmadi`,
+          : `Tayyor: ${totals.sent} ta yuborildi, ${totals.failed} ta yetmadi${selectedChannels.length ? `, kanallarga: ${totals.channelsSent}/${selectedChannels.length}` : ''}`,
       )
     } catch (error) {
       show(error instanceof Error ? error.message : 'Yuborishda xato', 'error')
@@ -236,7 +276,11 @@ export function BroadcastPage() {
 
   const buttonsInvalid = buttons.some((b) => buttonError(b))
   const longCaption = Boolean(media) && Math.max(plainLength(text), plainLength(textRu)) > CAPTION_MAX
-  const blocked = running || uploading || buttonsInvalid || (!text.trim() && !media) || recipients.length === 0
+  const blocked = running || uploading || buttonsInvalid || (!text.trim() && !media) || (recipients.length === 0 && selectedChannels.length === 0)
+  const target = [
+    recipients.length ? `${recipients.length} ta mijozga` : '',
+    selectedChannels.length ? `${selectedChannels.length} ta kanalga` : '',
+  ].filter(Boolean).join(' va ')
 
   return (
     <>
@@ -552,13 +596,44 @@ export function BroadcastPage() {
             </div>
           )}
 
+          {/* Kanal va guruhlar — do'kon boti admin qilib qo'shilganlari o'zi chiqadi */}
+          <p className="adm-label mt-4">Kanal va guruhlar</p>
+          {channels.length ? (
+            <div className="adm-bc-channels">
+              {channels.map((c) => (
+                <label key={c.id} className={'adm-bc-channel' + (c.canPost ? '' : ' is-off') + (pickedChannels.includes(c.id) && c.canPost ? ' is-on' : '')}>
+                  <input
+                    type="checkbox"
+                    checked={pickedChannels.includes(c.id) && c.canPost}
+                    disabled={!c.canPost || running}
+                    onChange={() => toggle(pickedChannels, setPickedChannels, c.id)}
+                  />
+                  <span>
+                    <b>{c.type === 'channel' ? '📢' : '👥'} {c.title}</b>
+                    <small>
+                      {c.username ? `@${c.username}` : c.type === 'channel' ? 'Yopiq kanal' : 'Guruh'}
+                      {!c.canPost && ' · botda «xabar joylash» huquqi yo‘q'}
+                    </small>
+                  </span>
+                </label>
+              ))}
+              <p className="text-xs" style={{ color: 'var(--faint)' }}>Kanalda «Ilovada ochish» tugmalari saytingiz havolasi bo‘lib chiqadi.</p>
+            </div>
+          ) : (
+            <p className="adm-bc-note">
+              Kanalingizga ham yuborish uchun {shop.botUsername ? <b>@{shop.botUsername}</b> : 'botingizni'} kanalga admin qilib qo‘shing
+              («Xabar joylash» huquqi bilan) — kanal shu yerda o‘zi paydo bo‘ladi. Bot kanalda allaqachon bo‘lsa — uni chiqarib, qayta qo‘shing.{' '}
+              <button type="button" className="adm-link" onClick={() => setChannelsTick((n) => n + 1)}>Yangilash</button>
+            </p>
+          )}
+
           <button
             className="adm-btn adm-btn--primary mt-4 w-full py-3"
             onClick={() => setConfirming(true)}
             disabled={blocked}
           >
             <Send size={17} />
-            {running ? 'Yuborilmoqda...' : recipients.length ? `${recipients.length} ta mijozga yuborish` : 'Qabul qiluvchi yo‘q'}
+            {running ? 'Yuborilmoqda...' : target ? `${target} yuborish` : 'Qabul qiluvchi yo‘q'}
           </button>
 
           {running && (
@@ -618,7 +693,13 @@ export function BroadcastPage() {
                 <Line icon={<CheckCircle2 size={15} />} label="Yuborildi" value={progress.sent} tone="var(--brand)" />
                 <Line icon={<XCircle size={15} />} label="Yetmadi — bot bloklangan" value={progress.failed} tone="var(--danger)" />
                 <Line icon={<Megaphone size={15} />} label="O‘tkazib yuborildi" value={progress.skipped} tone="var(--muted)" />
+                {selectedChannels.length > 0 && (
+                  <Line icon={<Send size={15} />} label="Kanal va guruhlarga" value={progress.channelsSent} tone="var(--brand)" />
+                )}
               </div>
+              {progress.channelErrors.map((e) => (
+                <p key={e} className="mt-2 text-xs" style={{ color: 'var(--danger)' }}>{e}</p>
+              ))}
               {running && (
                 <div className="mt-3 h-1.5 overflow-hidden rounded-full" style={{ background: 'var(--surface-3)' }}>
                   <div
@@ -639,7 +720,7 @@ export function BroadcastPage() {
       {confirming && (
         <ConfirmDialog
           title="Ommaviy xabar yuborilsinmi?"
-          message={`Xabar ${recipients.length} ta mijozga boradi. Yuborilgan xabarni qaytarib bo‘lmaydi.`}
+          message={`Xabar ${target || 'hech kimga'} boradi. Yuborilgan xabarni qaytarib bo‘lmaydi.`}
           confirmLabel="Ha, yuborilsin"
           onConfirm={start}
           onClose={() => setConfirming(false)}

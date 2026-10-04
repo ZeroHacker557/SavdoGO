@@ -6,6 +6,8 @@ import type { Staff, StaffRole } from '../admin-auth.js'
 import { canDeliver, syncCourierFlag } from '../courier-staff.js'
 import { miniAppUrl } from './orders.js'
 import { currentShop, shopDoc } from '../context.js'
+import { listChannels, pickChannels } from '../channels.js'
+import { refreshBotWebhook } from '../platform/bot.js'
 
 const ROLES: StaffRole[] = ['owner', 'admin', 'courier']
 
@@ -296,6 +298,14 @@ function readButtons(value: unknown): BroadcastButton[] {
   })
 }
 
+/** Do'kon boti qo'shilgan kanal va guruhlar — ommaviy xabar sahifasi uchun. */
+export async function broadcastChannels(actor: Staff) {
+  if (actor.role === 'courier') throw new Error('Kuryer ommaviy xabar yubora olmaydi')
+  // Eski ulangan bot kanal hodisalarini olmasligi mumkin — kerak bo'lsa yangilanadi
+  await refreshBotWebhook(currentShop().shopId)
+  return { channels: await listChannels((await shopDoc()).collection('channels')) }
+}
+
 export async function broadcast(actor: Staff, body: Record<string, unknown>) {
   if (actor.role === 'courier') throw new Error('Kuryer ommaviy xabar yubora olmaydi')
 
@@ -331,6 +341,36 @@ export async function broadcast(actor: Staff, body: Record<string, unknown>) {
   const tenant = await shopDoc()
   /** Birinchi muvaffaqiyatli yuborishdan keyin — Telegram'dagi fayl (qayta yuklanmaydi). */
   let mediaId = media?.fileId ?? null
+
+  /*
+   * Kanal va guruhlar (bot admin qilib qo'shilganlari — channels.ts). Alohida
+   * so'rovda keladi. Kanalda mini app tugmasi ishlamaydi — o'rniga do'kon
+   * saytining o'sha sahifasiga havola; matn o'zbekcha.
+   */
+  if (Array.isArray(body.channels) && body.channels.length) {
+    const channels = await pickChannels(tenant.collection('channels'), body.channels)
+    const site = miniAppUrl()
+    const rows: AnyButton[][] = buttons.map((b) => {
+      const button: AnyButton = { text: b.text, url: b.kind === 'app' && site ? appLink(site, b.target) : b.url || site || '' }
+      return [b.style ? { ...button, style: b.style } : button]
+    }).filter(([button]) => 'url' in button && button.url)
+    let channelsSent = 0
+    const channelErrors: string[] = []
+    for (const channel of channels) {
+      let result
+      if (media) {
+        const fits = plainLength(message) <= CAPTION_MAX
+        const sent = await sendMedia(channel.id, media.kind, mediaId ?? media.url, fits ? message : '', fits || !message ? rows : [])
+        if (sent.ok && sent.fileId) mediaId = sent.fileId
+        result = sent.ok && !fits && message ? await sendRows(channel.id, message, rows) : sent
+      } else {
+        result = rows.length ? await sendRows(channel.id, message, rows) : await sendMessage(channel.id, message)
+      }
+      if (result.ok) channelsSent++
+      else channelErrors.push(`${channel.title}: ${result.error}`)
+    }
+    return { sent: 0, failed: 0, skipped: 0, processed: 0, nextCursor: null, mediaId, channelsSent, channelErrors }
+  }
 
   /** Telegram xabari + ilova ichidagi bildirishnoma. */
   const deliver = async (userId: string, lang: Lang) => {

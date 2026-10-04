@@ -3,7 +3,7 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { AdminApiError, apiGet, apiPost } from './lib/api'
 import { getInitData, isInTelegram } from './lib/telegram'
 import { withRetry } from './lib/retry'
-import { loginWithCode, loginWithTelegram, logout, watchUser, PasswordlessError, type Staff } from './lib/auth'
+import { auth, loginWithCode, loginWithTelegram, logout, watchUser, PasswordlessError, type Staff } from './lib/auth'
 import { resolveSiteTarget } from '../platform/config'
 import { useRoute } from './lib/router'
 import { useCashHandovers, useOrders, useSupportThreads } from './lib/live'
@@ -19,6 +19,7 @@ import { BrainPage } from './pages/BrainPage'
 import { PromotionsPage } from './pages/PromotionsPage'
 import { AdsPage } from './pages/AdsPage'
 import { BillingPage } from './pages/BillingPage'
+import { AccountPage } from './pages/AccountPage'
 import { NewShopPage } from './pages/NewShopPage'
 import { DesignPage } from './pages/DesignPage'
 import { Paywall } from './components/Paywall'
@@ -177,6 +178,9 @@ export function AdminApp() {
         openRequestedRoute()
         void linkTelegramOnce()
       } catch (error) {
+        // Shu orada hisob almashgan yoki o'chirilgan (bog'lanmagan Google
+        // hisobi — loginWithGoogle uni o'chiradi): eski natija ekranni buzmasin
+        if (auth.currentUser?.uid !== user.uid) return
         const reason = error instanceof Error ? error.message : 'Noma‘lum xato'
         const status = error instanceof AdminApiError ? error.status : 0
         if (status === 403) {
@@ -327,6 +331,7 @@ function AdminPanel({
       {route === 'settings' && (staff.role === 'owner' ? <SettingsPage /> : <NoAccess />)}
       {route === 'design' && (staff.role === 'owner' ? <DesignPage /> : <NoAccess />)}
       {route === 'billing' && (staff.role === 'owner' ? <BillingPage /> : <NoAccess />)}
+      {route === 'account' && <AccountPage me={staff} />}
       {route === 'newshop' && (staff.role === 'owner' ? <NewShopPage /> : <NoAccess />)}
 
       {/* Ega va adminlar */}

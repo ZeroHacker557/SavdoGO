@@ -29,6 +29,7 @@ export type Route =
   | 'billing'
   | 'telegram'
   | 'newshop'
+  | 'account'
   | 'brain'
 
 export const ROUTES: Route[] = [
@@ -52,6 +53,7 @@ export const ROUTES: Route[] = [
   'billing',
   'telegram',
   'newshop',
+  'account',
   'brain',
 ]
 

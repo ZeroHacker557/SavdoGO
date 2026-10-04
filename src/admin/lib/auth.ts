@@ -7,6 +7,12 @@ import {
   onAuthStateChanged,
   signInWithCustomToken,
   signInWithEmailAndPassword,
+  signInWithPopup,
+  linkWithCredential,
+  linkWithPopup,
+  getAdditionalUserInfo,
+  EmailAuthProvider,
+  GoogleAuthProvider,
   signOut,
   sendPasswordResetEmail,
   type User,
@@ -137,6 +143,61 @@ export function resetPassword(email: string) {
   return sendPasswordResetEmail(auth, email.trim())
 }
 
+/* ─── Zaxira kirish usullari: Google va email ─────────────────
+ *
+ * Telegram orqali ochilgan egada email/parol yo'q. Telefon va Telegram
+ * yo'qolsa ham do'konga kira olishi uchun «Hisobim» bo'limida o'z
+ * hisobiga Google yoki email+parol ulaydi (Firebase — bitta hisob,
+ * bir nechta kirish usuli). Google oynasi Telegram ichida ishlamaydi —
+ * faqat brauzerda.
+ */
+
+/** Kirishdan oldin Google hisobi bog'lanmagan bo'lsa — kirish sahifasida ko'rinadigan sabab. */
+export const LOGIN_NOTICE_KEY = 'adm-login-notice'
+
+export class GoogleNotLinkedError extends Error {}
+
+/**
+ * «Google bilan kirish». Google hisobi hech bir xodimga ulanmagan bo'lsa,
+ * Firebase yangi bo'sh hisob ochib yuboradi — uni darhol o'chiramiz va
+ * tushunarli sabab qoldiramiz.
+ */
+export async function loginWithGoogle() {
+  await persistenceReady
+  const credential = await signInWithPopup(auth, new GoogleAuthProvider())
+  if (getAdditionalUserInfo(credential)?.isNewUser) {
+    const text = 'Bu Google hisobi hech qaysi do‘konga ulanmagan. Avval Telegram orqali kiring va «Hisobim» bo‘limida Google’ni ulang.'
+    try {
+      sessionStorage.setItem(LOGIN_NOTICE_KEY, text)
+    } catch {
+      /* sessionStorage yopiq */
+    }
+    await credential.user.delete().catch(() => signOut(auth))
+    throw new GoogleNotLinkedError(text)
+  }
+}
+
+/** Joriy hisobga Google'ni ulash (brauzerda). */
+export async function linkGoogle() {
+  if (!auth.currentUser) throw new Error('Avval tizimga kiring')
+  await linkWithPopup(auth.currentUser, new GoogleAuthProvider())
+}
+
+/** Joriy hisobga email va parol ulash — keyin istalgan brauzerdan shu bilan kirasiz. */
+export async function linkEmail(email: string, password: string) {
+  if (!auth.currentUser) throw new Error('Avval tizimga kiring')
+  await linkWithCredential(auth.currentUser, EmailAuthProvider.credential(email.trim().toLowerCase(), password))
+}
+
+/** Hisobga ulangan usullar: 'google.com', 'password'. */
+export function linkedProviders(user: User | null = auth.currentUser): { google: string | null; email: string | null } {
+  const data = user?.providerData ?? []
+  return {
+    google: data.find((p) => p.providerId === 'google.com')?.email ?? null,
+    email: data.find((p) => p.providerId === 'password')?.email ?? null,
+  }
+}
+
 /**
  * Firebase xatolarini tushunarli o'zbekcha matnga aylantiradi.
  * Xavfsizlik uchun "email yo'q" va "parol noto'g'ri" bitta xabar beradi —
@@ -163,7 +224,28 @@ export function authErrorText(error: unknown): string {
     // oladi, lekin brauzerdan kirish ishlamaydi — shuning uchun
     // "hisob yaratildi, lekin kira olmayapman" holati kelib chiqadi.
     case 'auth/operation-not-allowed':
-      return 'Firebase Console → Authentication → Sign-in method da Email/Password yoqilmagan'
+      return 'Bu kirish usuli hali yoqilmagan (Firebase Console → Authentication → Sign-in method). Platforma egasiga ayting.'
+
+    // Google va email ulash
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+      return 'Oyna yopildi — qayta urinib ko‘ring'
+    case 'auth/popup-blocked':
+      return 'Brauzer oynani to‘sib qo‘ydi — qalqib chiquvchi oynalarga ruxsat bering'
+    case 'auth/credential-already-in-use':
+      return 'Bu Google hisobi boshqa hisobga ulangan'
+    case 'auth/email-already-in-use':
+      return 'Bu email boshqa hisobda ishlatilgan — boshqasini kiriting'
+    case 'auth/provider-already-linked':
+      return 'Bu usul allaqachon ulangan'
+    case 'auth/weak-password':
+      return 'Parol juda oddiy — kamida 8 ta belgi'
+    case 'auth/requires-recent-login':
+      return 'Xavfsizlik uchun chiqib, qayta kiring va yana urinib ko‘ring'
+    case 'auth/account-exists-with-different-credential':
+      return 'Bu email bilan hisob bor — email va parol bilan kiring'
+    case 'auth/unauthorized-domain':
+      return 'Bu sayt Firebase’da ruxsat etilmagan (Authorized domains). Platforma egasiga ayting.'
 
     case 'auth/invalid-api-key':
     case 'auth/api-key-not-valid':
