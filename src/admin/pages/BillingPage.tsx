@@ -3,7 +3,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { PLANS, PLAN_ORDER, PLATFORM, TRIAL_DAYS, YEAR_SAVING_PERCENT, formatSum, type PlanId } from '../../platform/config'
-import { apiPost } from '../lib/api'
+import { AdminApiError, apiPost } from '../lib/api'
 import { daysLeft, isLocked, useAdminShop } from '../lib/shop'
 import { useToast } from '../components/Toast'
 
@@ -154,6 +154,8 @@ export function BillingPage() {
       setData((prev) => (prev ? { ...prev, invoice: created } : prev))
     } catch (error) {
       show(error instanceof Error ? error.message : 'To‘lovni boshlab bo‘lmadi', 'error')
+      // Hamyon ishlamayapti — zaxira usulni darhol ko'rsatamiz
+      if (error instanceof AdminApiError && error.code === 'hamyon-unavailable') setShowReceipt(true)
     } finally {
       setPaying(false)
     }

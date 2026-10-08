@@ -98,6 +98,35 @@ function isExpired(data: Record<string, unknown>, now = Date.now()): boolean {
 
 /* ── To'lov yaratish / bekor qilish (do'kon egasi) ─────────────────── */
 
+const ALERT_EVERY_MS = 10 * 60_000
+let lastAlertAt = 0
+
+/**
+ * Hamyon to'lov yarata olmadi (sessiya ulanmagan, kalit noto'g'ri,
+ * server javob bermadi...). Ega buni tuzata olmaydi — unga oddiy matn
+ * va chek usuli, platforma egasiga esa haqiqiy sabab (10 daqiqada
+ * ko'pi bilan bir marta, har bosishda emas).
+ */
+function unavailable(reason: string, shopName: string, shopId: string): PlatformError {
+  console.error('[hamyon] create xato:', reason)
+  if (Date.now() - lastAlertAt > ALERT_EVERY_MS) {
+    lastAlertAt = Date.now()
+    void notifyPlatform(
+      [
+        '⚠️ <b>Hamyon: avtomatik to‘lov ishlamadi</b>',
+        `Sabab: ${esc(reason)}`,
+        `Do‘kon: ${esc(shopName)} (${esc(shopId)}) — egaga chek usuli taklif qilindi.`,
+        '@HamyonAPIBot sozlamalarini tekshiring.',
+      ].join('\n'),
+    )
+  }
+  return new PlatformError(
+    'Avtomatik to‘lov hozir ishlamayapti. Iltimos, kartaga o‘tkazib chek yuboring — tez tasdiqlaymiz.',
+    503,
+    'hamyon-unavailable',
+  )
+}
+
 export async function hamyonCreate(staff: Staff, body: Record<string, unknown>): Promise<Invoice> {
   if (staff.role !== 'owner') throw new PlatformError('To‘lovni faqat do‘kon egasi qila oladi', 403)
   const keys = hamyonKeys()
@@ -169,15 +198,14 @@ export async function hamyonCreate(staff: Staff, body: Record<string, unknown>):
       lastError = error instanceof Error ? error.message : String(error)
       // Shu summada ochiq to'lov bor — keyingi so'mni sinaymiz
       if (/summa|ochiq|mavjud/i.test(lastError)) continue
-      console.error('[hamyon] create xato:', lastError)
-      throw new PlatformError(`To‘lov tizimi javob bermadi: ${lastError}`, 502, 'hamyon-error')
+      throw unavailable(lastError, state.name, staff.shopId)
     }
 
     const card = String(result.card || '').trim()
     const paymentId = String(result.payment_id || '').trim()
     if (!card || !paymentId) {
       await ref.delete().catch(() => undefined)
-      throw new PlatformError('To‘lov tizimi karta raqamini qaytarmadi', 502, 'hamyon-error')
+      throw unavailable('karta raqami yoki payment_id qaytmadi', state.name, staff.shopId)
     }
     const expireAt = Number(result.expire_at) > 0
       ? new Date(Number(result.expire_at) * 1000).toISOString()
