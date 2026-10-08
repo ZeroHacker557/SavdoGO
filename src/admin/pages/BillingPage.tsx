@@ -1,5 +1,5 @@
 import {
-  ArrowRight, Check, CheckCircle2, Clock, Copy, ImagePlus, Loader2, Receipt, Send, ShieldCheck, Trash2, XCircle,
+  ArrowRight, Check, CheckCircle2, ChevronDown, Clock, Copy, CreditCard, ImagePlus, Loader2, Receipt, Send, ShieldCheck, Trash2, X, XCircle, Zap,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { PLANS, PLAN_ORDER, PLATFORM, TRIAL_DAYS, YEAR_SAVING_PERCENT, formatSum, type PlanId } from '../../platform/config'
@@ -9,10 +9,11 @@ import { useToast } from '../components/Toast'
 
 type Payment = {
   id: string
+  method: 'receipt' | 'hamyon'
   plan: PlanId
   amount: number
   telegramAddon: boolean
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'pending' | 'approved' | 'rejected' | 'awaiting' | 'cancelled'
   receipt: string
   note: string
   reviewNote: string
@@ -27,13 +28,26 @@ type Billing = {
   plan: PlanId
   telegramAddon: boolean
   card: { cardNumber: string; cardOwner: string; note: string }
+  /** Avtomatik to'lov (Hamyon) yoqilganmi. */
+  hamyon?: boolean
+  /** Ochiq Hamyon to'lovi: shu kartaga aynan shu summa kutilmoqda. */
+  invoice?: Invoice | null
   payments: Payment[]
 }
+
+type Invoice = { id: string; plan: PlanId; amount: number; card: string; expireAt: string }
 
 const STATUS: Record<Payment['status'], { label: string; icon: typeof Clock; color: string; bg: string }> = {
   pending: { label: 'Tekshirilmoqda', icon: Clock, color: 'var(--warning)', bg: 'var(--warning-soft)' },
   approved: { label: 'Tasdiqlandi', icon: CheckCircle2, color: 'var(--success)', bg: 'var(--success-soft)' },
   rejected: { label: 'Rad etildi', icon: XCircle, color: 'var(--danger)', bg: 'var(--danger-soft)' },
+  awaiting: { label: 'Kutilmoqda', icon: Clock, color: 'var(--warning)', bg: 'var(--warning-soft)' },
+  cancelled: { label: 'Bekor qilindi', icon: XCircle, color: 'var(--muted)', bg: 'var(--surface-2)' },
+}
+
+function formatTimer(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000))
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
 }
 
 function formatDate(iso: string | null): string {
@@ -61,10 +75,13 @@ async function compressReceipt(file: File): Promise<string> {
 /**
  * Obuna va to'lov — do'kon egasi uchun.
  *
- * Tarif tanlanadi, platforma kartasiga o'tkazma qilinadi va chek
- * rasmi yuklanadi. Platforma egasi /super panelida tasdiqlagach do'kon
- * faollashadi — bu sahifa do'kon hujjatini jonli kuzatgani uchun
- * holat o'zi yangilanadi.
+ * Avtomatik usul (Hamyon yoqilgan bo'lsa): «Karta orqali to'lash» →
+ * karta raqami va aniq summa chiqadi, pul tushishi bilan do'kon o'zi
+ * faollashadi. Sahifa ochiq to'lovni har necha soniyada tekshiradi.
+ *
+ * Zaxira usul: platforma kartasiga o'tkazma + chek rasmi, platforma
+ * egasi /super panelida tasdiqlaydi. Bu sahifa do'kon hujjatini jonli
+ * kuzatgani uchun holat o'zi yangilanadi.
  */
 export function BillingPage() {
   const shop = useAdminShop()
@@ -75,8 +92,12 @@ export function BillingPage() {
   const [receipt, setReceipt] = useState<string | null>(null)
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
+  const [paying, setPaying] = useState(false)
+  const [showReceipt, setShowReceipt] = useState(false)
+  const [now, setNow] = useState(() => Date.now())
   const fileRef = useRef<HTMLInputElement>(null)
+  const lastInvoice = useRef<string | null>(null)
 
   // Chek yuborilgach qayta yuklash uchun
   const [reload, setReload] = useState(0)
@@ -97,9 +118,61 @@ export function BillingPage() {
     }
   }, [reload, shop.status, shop.paidUntil])
 
+  const invoice = data?.invoice ?? null
+  const invoiceLeft = invoice ? Date.parse(invoice.expireAt) - now : 0
+
+  // Ochiq to'lov: soat har soniya, holat har 4 soniyada (server Hamyondan so'raydi)
+  const invoiceId = invoice?.id
+  useEffect(() => {
+    if (!invoiceId) return
+    const tick = window.setInterval(() => setNow(Date.now()), 1000)
+    const poll = window.setInterval(() => setReload((n) => n + 1), 4000)
+    return () => {
+      window.clearInterval(tick)
+      window.clearInterval(poll)
+    }
+  }, [invoiceId])
+
+  // To'lov yopildi — tushgan bo'lsa egaga aytamiz
+  useEffect(() => {
+    if (!data) return
+    const prev = lastInvoice.current
+    lastInvoice.current = data.invoice?.id ?? null
+    if (!prev || data.invoice?.id === prev) return
+    if (data.payments.some((p) => p.id === prev && p.status === 'approved')) show('To‘lov qabul qilindi — do‘kon faollashdi!')
+  }, [data, show])
+
   const locked = isLocked(shop)
   const left = daysLeft(shop)
   const pending = data?.payments.find((p) => p.status === 'pending')
+
+  const startHamyon = async () => {
+    setPaying(true)
+    try {
+      const created = await apiPost<Invoice>('/api/platform', { action: 'billing.hamyon.create', plan })
+      setNow(Date.now())
+      setData((prev) => (prev ? { ...prev, invoice: created } : prev))
+    } catch (error) {
+      show(error instanceof Error ? error.message : 'To‘lovni boshlab bo‘lmadi', 'error')
+    } finally {
+      setPaying(false)
+    }
+  }
+
+  const cancelHamyon = async () => {
+    if (!invoice) return
+    setPaying(true)
+    try {
+      await apiPost('/api/platform', { action: 'billing.hamyon.cancel', id: invoice.id })
+      lastInvoice.current = null
+      setData((prev) => (prev ? { ...prev, invoice: null } : prev))
+      setReload((n) => n + 1)
+    } catch (error) {
+      show(error instanceof Error ? error.message : 'Bekor qilib bo‘lmadi', 'error')
+    } finally {
+      setPaying(false)
+    }
+  }
 
   const pickFile = async (file: File | undefined) => {
     if (!file) return
@@ -126,15 +199,95 @@ export function BillingPage() {
     }
   }
 
-  const copy = async (text: string) => {
+  const copy = async (key: string, text: string) => {
     try {
       await navigator.clipboard.writeText(text.replace(/\s/g, ''))
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1800)
+      setCopied(key)
+      window.setTimeout(() => setCopied(null), 1800)
     } catch {
       /* clipboard yopiq */
     }
   }
+
+  const copyButton = (key: string, text: string) => (
+    <button className="adm-btn adm-btn--ghost" onClick={() => copy(key, text)}>
+      {copied === key ? <Check size={16} /> : <Copy size={16} />} {copied === key ? 'Nusxalandi' : 'Nusxa olish'}
+    </button>
+  )
+
+  /* Avtomatik to'lov — Hamyon */
+  const hamyonSection = (
+    <section className="adm-card p-4 sm:p-5">
+      <h2 className="flex items-center gap-2 text-base font-extrabold">
+        2. Karta orqali to‘lang
+        <span className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-extrabold" style={{ background: 'var(--success-soft)', color: 'var(--success)' }}>
+          <Zap size={12} /> avtomatik
+        </span>
+      </h2>
+
+      {invoice && invoiceLeft > 0 ? (
+        <>
+          <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
+            Payme, Click yoki bank ilovangizdan quyidagi kartaga <b>aynan shu summani</b> o‘tkazing. Pul tushishi bilan do‘kon o‘zi
+            faollashadi — chek yuborish shart emas.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4" style={{ background: 'var(--surface-2)' }}>
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>Karta raqami</p>
+              <p className="font-mono text-lg font-bold tracking-wider">{invoice.card}</p>
+            </div>
+            {copyButton('card', invoice.card)}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4" style={{ background: 'var(--brand-soft)' }}>
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>O‘tkaziladigan summa</p>
+              <p className="text-2xl font-extrabold" style={{ color: 'var(--brand)' }}>{formatSum(invoice.amount)}</p>
+            </div>
+            {copyButton('amount', String(invoice.amount))}
+          </div>
+          {invoice.amount !== PLANS[invoice.plan].price && (
+            <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>
+              To‘lov summa orqali aniqlanadi, shuning uchun oxirgi raqamlar ham muhim: {formatSum(invoice.amount)}, {formatSum(PLANS[invoice.plan].price)} emas.
+            </p>
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <span className="flex flex-1 items-center gap-2 text-sm font-bold">
+              <Loader2 size={16} className="animate-spin" style={{ color: 'var(--brand)' }} />
+              To‘lov kutilmoqda · {formatTimer(invoiceLeft)}
+            </span>
+            <button className="adm-btn adm-btn--ghost" disabled={paying} onClick={cancelHamyon}>
+              <X size={16} /> Bekor qilish
+            </button>
+          </div>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: 'var(--surface-2)' }}>
+            <div className="h-full rounded-full transition-[width] duration-1000" style={{ width: `${Math.min(100, (invoiceLeft / 300_000) * 100)}%`, background: 'var(--brand)' }} />
+          </div>
+        </>
+      ) : (
+        <>
+          {invoice && (
+            <div className="mt-3 flex items-start gap-3 rounded-2xl p-4" style={{ background: 'var(--warning-soft)' }}>
+              <Clock size={20} className="mt-0.5 shrink-0" style={{ color: 'var(--warning)' }} />
+              <p className="text-sm">
+                <b>Vaqt tugadi.</b> Pulni o‘tkazgan bo‘lsangiz, u bir necha soniyada tasdiqlanadi. O‘tkazmagan bo‘lsangiz — qaytadan boshlang.
+              </p>
+            </div>
+          )}
+          <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
+            UZCARD yoki HUMO kartangizdan istalgan ilova orqali o‘tkazasiz. Pul tushishi bilan do‘kon <b>avtomatik</b> faollashadi —
+            chek yuborish va kutish shart emas. To‘lov uchun 5 daqiqa beriladi.
+          </p>
+          <div className="mt-3 flex items-center justify-between rounded-xl px-4 py-3" style={{ background: 'var(--brand-soft)' }}>
+            <span className="text-sm font-bold">To‘lanadigan summa</span>
+            <span className="text-lg font-extrabold" style={{ color: 'var(--brand)' }}>{formatSum(PLANS[plan].price)}</span>
+          </div>
+          <button className="adm-btn adm-btn--primary mt-3 w-full sm:w-auto" disabled={paying || !data} onClick={startHamyon}>
+            {paying ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />} Karta orqali to‘lash
+          </button>
+        </>
+      )}
+    </section>
+  )
 
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -183,7 +336,8 @@ export function BillingPage() {
                   key={id}
                   type="button"
                   onClick={() => setPlan(id)}
-                  className="relative rounded-2xl border-2 p-4 text-left transition"
+                  disabled={!!invoice && invoiceLeft > 0}
+                  className="relative rounded-2xl border-2 p-4 text-left transition disabled:opacity-60"
                   style={{ borderColor: active ? 'var(--brand)' : 'var(--line)', background: active ? 'var(--brand-soft)' : 'var(--surface)' }}
                 >
                   {id === 'year' && (
@@ -218,18 +372,32 @@ export function BillingPage() {
           )}
         </section>
 
+        {data?.hamyon && hamyonSection}
+
+        {data?.hamyon && (
+          <button
+            type="button"
+            className="flex items-center gap-2 justify-self-start text-sm font-bold"
+            style={{ color: 'var(--muted)' }}
+            onClick={() => setShowReceipt((v) => !v)}
+            aria-expanded={showReceipt}
+          >
+            <Receipt size={16} /> Boshqa usul: kartaga o‘tkazib, chek yuborish
+            <ChevronDown size={16} style={{ transform: showReceipt ? 'rotate(180deg)' : undefined, transition: 'transform .2s' }} />
+          </button>
+        )}
+
+        {(!data?.hamyon || showReceipt) && (<>
         {/* Karta */}
         <section className="adm-card p-4 sm:p-5">
-          <h2 className="text-base font-extrabold">2. Kartaga o‘tkazing</h2>
+          <h2 className="text-base font-extrabold">{data?.hamyon ? 'Kartaga o‘tkazing' : '2. Kartaga o‘tkazing'}</h2>
           {data?.card.cardNumber ? (
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4" style={{ background: 'var(--surface-2)' }}>
               <div className="min-w-0">
                 <p className="font-mono text-lg font-bold tracking-wider">{data.card.cardNumber}</p>
                 <p className="text-sm font-bold" style={{ color: 'var(--muted)' }}>{data.card.cardOwner}</p>
               </div>
-              <button className="adm-btn adm-btn--ghost" onClick={() => copy(data.card.cardNumber)}>
-                {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? 'Nusxalandi' : 'Nusxa olish'}
-              </button>
+              {copyButton('platform-card', data.card.cardNumber)}
             </div>
           ) : (
             <p className="mt-3 text-sm" style={{ color: 'var(--muted)' }}>
@@ -247,7 +415,7 @@ export function BillingPage() {
 
         {/* Chek */}
         <section className="adm-card p-4 sm:p-5">
-          <h2 className="text-base font-extrabold">3. Chekni yuboring</h2>
+          <h2 className="text-base font-extrabold">{data?.hamyon ? 'Chekni yuboring' : '3. Chekni yuboring'}</h2>
           {pending ? (
             <div className="mt-3 flex items-start gap-3 rounded-2xl p-4" style={{ background: 'var(--warning-soft)' }}>
               <Clock size={20} className="mt-0.5 shrink-0" style={{ color: 'var(--warning)' }} />
@@ -307,6 +475,7 @@ export function BillingPage() {
             </div>
           </div>
         </section>
+        </>)}
       </div>
 
       {/* Tarix */}
@@ -338,9 +507,15 @@ export function BillingPage() {
                       {payment.reviewNote}
                     </p>
                   )}
-                  <a className="mt-1.5 inline-block text-xs font-bold" style={{ color: 'var(--brand)' }} href={payment.receipt} target="_blank" rel="noreferrer">
-                    Chekni ko‘rish
-                  </a>
+                  {payment.receipt ? (
+                    <a className="mt-1.5 inline-block text-xs font-bold" style={{ color: 'var(--brand)' }} href={payment.receipt} target="_blank" rel="noreferrer">
+                      Chekni ko‘rish
+                    </a>
+                  ) : payment.method === 'hamyon' ? (
+                    <p className="mt-1.5 flex items-center gap-1 text-xs font-bold" style={{ color: 'var(--success)' }}>
+                      <Zap size={12} /> Karta orqali, avtomatik
+                    </p>
+                  ) : null}
                 </li>
               )
             })}

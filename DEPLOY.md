@@ -23,6 +23,8 @@ Shu email va parol bilan `/super` ga kirasiz. Parolni faqat o'zingiz biling.
    | `CRON_SECRET` | uzun tasodifiy satr |
    | `PLATFORM_BOT_TOKEN` | SavdoGO boti tokeni (Telegram'da do'kon ochish va boshqarish) |
    | `PLATFORM_CHAT_ID` | (ixtiyoriy) sizning Telegram chat ID ingiz — botga `/id` yozing |
+   | `HAMYON_SHOP_ID` | (ixtiyoriy) avtomatik to'lov — @HamyonAPIBot bergan `shop_id` |
+   | `HAMYON_SHOP_KEY` | (ixtiyoriy) @HamyonAPIBot bergan `shop_key` — maxfiy |
 
    `.env` faylidagi `FIREBASE_SERVICE_ACCOUNT` qatorini to'g'ridan-to'g'ri
    nusxalash mumkin. `PUBLIC_BASE_URL` va `SHOP_BASE_URL` ni Vercel'ga
@@ -68,6 +70,27 @@ Firebase Console → **Authentication → Settings → Authorized domains** ga
 - Yangi chek kelganda **To'lovlar** bo'limida nishon chiqadi; `PLATFORM_BOT_TOKEN`
   bo'lsa Telegram'ga ham xabar keladi. Obunasi 3 kun ichida tugaydigan
   do'konlar ro'yxati har kuni keladi (`/api/cron`, Toshkent 00:00).
+
+### Avtomatik to'lov — Hamyon API
+
+Do'kon egasi «Karta orqali to'lash» ni bosadi → karta raqami va aniq
+summa chiqadi → pul kartaga tushishi bilan (5–30 soniya) do'kon o'zi
+faollashadi, chek va qo'lda tasdiq kerak emas. Chek usuli zaxira bo'lib
+qoladi («Boshqa usul»).
+
+1. Telegram'da @HamyonAPIBot → `/start` → `shop_id` va `shop_key` oling.
+2. Pul tushadigan kartani ulang: UZCARD — @CardXabarBot, HUMO — @HumoCardBot.
+3. @HamyonAPIBot'dagi do'kon sozlamalarida callback manzillari:
+   - prepare_url: `https://savdogo.shop/api/platform?hamyon=prepare`
+   - complete_url: `https://savdogo.shop/api/platform?hamyon=complete`
+4. Vercel → Environment Variables: `HAMYON_SHOP_ID`, `HAMYON_SHOP_KEY` → Redeploy.
+5. Tekshirish: `https://savdogo.shop/api/platform` → `hamyon: true`.
+
+To'lov summa bo'yicha aniqlanadi: bir vaqtda ikki do'kon bir xil tarifni
+to'layotgan bo'lsa, ikkinchisiga summa 1 so'm oshirib beriladi
+(199 000 → 199 001). Callback yetib bormasa ham, ega to'lov sahifasida
+kutib turganda server holatni `GET /payment/status` orqali o'zi so'raydi.
+Summa mos kelmasa to'lov **To'lovlar** bo'limiga qo'lda tekshirish uchun tushadi.
 
 ## 5. Qo'shimcha xizmatlar
 

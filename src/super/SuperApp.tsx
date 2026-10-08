@@ -1,6 +1,6 @@
 import {
   BadgeCheck, Ban, Check, CheckCircle2, Clock, Copy, CreditCard, ExternalLink, Eye, FilePlus2, Gift, Globe, LayoutDashboard,
-  Loader2, LogOut, Megaphone, Moon, RefreshCw, Search, Send, Settings2, ShieldAlert, ShoppingBag, Store, Sun, Trash2, TrendingUp, Wallet, X, XCircle,
+  Loader2, LogOut, Megaphone, Moon, RefreshCw, Search, Send, Settings2, ShieldAlert, ShoppingBag, Store, Sun, Trash2, TrendingUp, Wallet, X, XCircle, Zap,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import type { User } from 'firebase/auth'
@@ -42,6 +42,8 @@ type ShopRow = {
 
 type PaymentRow = {
   id: string
+  /** `hamyon` — avtomatik to'lov (chek yo'q). */
+  method: 'receipt' | 'hamyon'
   shopId: string
   shopName: string
   plan: PlanId
@@ -422,9 +424,16 @@ function Payments({ payments, shops, run }: { payments: PaymentRow[]; shops: Sho
             const shop = byId.get(payment.shopId)
             return (
               <article key={payment.id} className="adm-card sp-pay p-4 sm:p-5">
-                <button className="sp-pay__receipt" onClick={() => setPreview(payment.receipt)} aria-label="Chekni kattalashtirish">
-                  <img src={payment.receipt} alt="Chek" loading="lazy" />
-                </button>
+                {payment.receipt ? (
+                  <button className="sp-pay__receipt" onClick={() => setPreview(payment.receipt)} aria-label="Chekni kattalashtirish">
+                    <img src={payment.receipt} alt="Chek" loading="lazy" />
+                  </button>
+                ) : (
+                  <div className="sp-pay__receipt grid place-items-center p-3 text-center text-xs font-bold" style={{ color: 'var(--muted)' }}>
+                    <Zap size={22} style={{ color: 'var(--warning)' }} />
+                    Hamyon — chek yo‘q
+                  </div>
+                )}
                 <div className="grid content-start gap-2">
                   <div className="flex items-center gap-2.5">
                     {shop && <ShopMark shop={shop} size={34} />}
@@ -469,7 +478,11 @@ function Payments({ payments, shops, run }: { payments: PaymentRow[]; shops: Sho
                 </td>
                 <td>{date(p.reviewedAt ?? p.createdAt)}</td>
                 <td>{p.paidUntil ? date(p.paidUntil) : '—'}</td>
-                <td><a className="adm-link" href={p.receipt} target="_blank" rel="noreferrer">Chek</a></td>
+                <td>
+                  {p.receipt
+                    ? <a className="adm-link" href={p.receipt} target="_blank" rel="noreferrer">Chek</a>
+                    : <span className="sp-pill" style={{ color: 'var(--success)', background: 'var(--success-soft)' }}><Zap size={12} /> Hamyon</span>}
+                </td>
               </tr>
             ))}
             {!history.length && <tr><td colSpan={7} style={{ color: 'var(--muted)' }}>Hali yo‘q</td></tr>}

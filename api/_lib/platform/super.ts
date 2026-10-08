@@ -8,6 +8,7 @@ import { superRequests } from './owners.js'
 import { runTx } from '../firestore-tx.js'
 import { deleteShopCompletely } from './delete-shop.js'
 import { createLoginLink } from './tglogin.js'
+import { activatePaymentTx } from './activate.js'
 
 /**
  * Platforma egasi (super-admin) amallari.
@@ -74,7 +75,8 @@ export async function superOverview() {
     }
   })
 
-  const payments = paymentsSnap.docs.map((doc) => ({
+  // Hamyon'ning ochiq/bekor bo'lgan to'lovlari — pul kelmagan, ro'yxatni to'ldirmasin
+  const payments = paymentsSnap.docs.filter((doc) => !['awaiting', 'cancelled'].includes(String(doc.data().status))).map((doc) => ({
     ...paymentRow(doc.id, doc.data()),
     shopId: String(doc.data().shopId || ''),
     shopName: String(doc.data().shopName || ''),
@@ -110,12 +112,8 @@ export async function superOverview() {
 }
 
 /**
- * To'lovni tasdiqlash: do'kon faollashadi, muddat qo'shiladi.
- *
- * Muddat hozirgi muddat tugaydigan kundan (yoki bugundan, agar tugab
- * bo'lgan bo'lsa) hisoblanadi — muddatidan oldin to'lagan ega kun
- * yo'qotmaydi (bepul sinov kunlari ham). Tranzaksiyada: bir chek ikki
- * marta tasdiqlanmasin.
+ * Chekni tasdiqlash: do'kon faollashadi, muddat qo'shiladi
+ * (activate.ts). Tranzaksiyada: bir chek ikki marta tasdiqlanmasin.
  */
 export async function paymentApprove(user: SuperUser, body: Record<string, unknown>) {
   const id = String(body.id || '')
@@ -128,34 +126,7 @@ export async function paymentApprove(user: SuperUser, body: Record<string, unkno
     if (!paymentSnap.exists) throw new PlatformError('To‘lov topilmadi', 404)
     const payment = paymentSnap.data() ?? {}
     if (payment.status !== 'pending') throw new PlatformError('Bu to‘lov allaqachon ko‘rib chiqilgan', 409)
-
-    const shopRef = db.collection('shops').doc(String(payment.shopId))
-    const shopSnap = await tx.get(shopRef)
-    if (!shopSnap.exists) throw new PlatformError('Do‘kon topilmadi', 404)
-    const shop = shopSnap.data() ?? {}
-
-    const plan = (String(payment.plan) in PLANS ? payment.plan : 'month') as PlanId
-    const now = Date.now()
-    const current = typeof shop.paidUntil === 'string' ? new Date(shop.paidUntil).getTime() : 0
-    const from = Math.max(now, Number.isFinite(current) ? current : 0)
-    const paidUntil = new Date(from + PLANS[plan].days * DAY).toISOString()
-    const reviewedAt = new Date().toISOString()
-
-    tx.update(shopRef, {
-      status: 'active',
-      plan,
-      paidUntil,
-      trial: false,
-      telegramAddon: shop.telegramAddon === true || payment.telegramAddon === true,
-      updatedAt: reviewedAt,
-    })
-    tx.update(paymentRef, {
-      status: 'approved',
-      reviewedAt,
-      reviewedBy: user.email || user.uid,
-      paidUntil,
-    })
-    return { shopId: String(payment.shopId), paidUntil }
+    return activatePaymentTx(db, tx, paymentRef, payment, user.email || user.uid)
   })
 }
 

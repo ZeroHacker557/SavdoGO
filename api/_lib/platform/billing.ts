@@ -5,9 +5,13 @@ import { readShopState } from '../tenant.js'
 import { uploadDataUrl } from './files.js'
 import { esc, notifyPlatform } from './notify.js'
 import { PlatformError } from './errors.js'
+import { hamyonKeys, reconcile, type Invoice } from './hamyon.js'
 
 /**
  * Obuna to'lovi — kartaga o'tkazma + chek.
+ *
+ * (Avtomatik usul — Hamyon API, hamyon.ts: pul tushishi bilan do'kon
+ * o'zi faollashadi. Chek usuli zaxira sifatida qoladi.)
  *
  *   1. Ega admin paneldagi «To'lov» bo'limida tarifni tanlaydi,
  *      platforma kartasiga pul o'tkazadi va chek rasmini yuklaydi.
@@ -32,10 +36,13 @@ export async function platformCard(): Promise<PlatformCard> {
 
 type PaymentRow = {
   id: string
+  /** `receipt` — chek bilan (qo'lda tasdiq), `hamyon` — avtomatik. */
+  method: 'receipt' | 'hamyon'
   plan: PlanId
   amount: number
   telegramAddon: boolean
-  status: 'pending' | 'approved' | 'rejected'
+  /** `awaiting`/`cancelled` — faqat Hamyon: to'lov kutilmoqda / pul kelmadi. */
+  status: 'pending' | 'approved' | 'rejected' | 'awaiting' | 'cancelled'
   receipt: string
   note: string
   reviewNote: string
@@ -47,10 +54,11 @@ type PaymentRow = {
 function toRow(id: string, data: Record<string, unknown>): PaymentRow {
   return {
     id,
+    method: data.method === 'hamyon' ? 'hamyon' : 'receipt',
     plan: (String(data.plan) in PLANS ? data.plan : 'month') as PlanId,
     amount: Number(data.amount) || 0,
     telegramAddon: data.telegramAddon === true,
-    status: (['pending', 'approved', 'rejected'].includes(String(data.status)) ? data.status : 'pending') as PaymentRow['status'],
+    status: (['pending', 'approved', 'rejected', 'awaiting', 'cancelled'].includes(String(data.status)) ? data.status : 'pending') as PaymentRow['status'],
     receipt: String(data.receipt || ''),
     note: String(data.note || ''),
     reviewNote: String(data.reviewNote || ''),
@@ -60,18 +68,43 @@ function toRow(id: string, data: Record<string, unknown>): PaymentRow {
   }
 }
 
-/** Egasi uchun: do'kon holati, platforma kartasi va to'lovlar tarixi. */
+/**
+ * Egasi uchun: do'kon holati, platforma kartasi, ochiq Hamyon to'lovi
+ * va to'lovlar tarixi. Ochiq to'lov bo'lsa holati Hamyondan so'raladi —
+ * sahifa kutib turganda har necha soniyada chaqiriladi.
+ */
 export async function billingStatus(staff: Staff) {
   const db = await adminDb()
-  const [state, card, snap, shopSnap] = await Promise.all([
+  const paymentsQuery = db.collection('payments').where('shopId', '==', staff.shopId)
+  let snap = await paymentsQuery.get()
+  const awaiting = snap.docs.filter((doc) => doc.data().status === 'awaiting')
+  if (awaiting.length && hamyonKeys()) {
+    await Promise.all(awaiting.map((doc) => reconcile(db, doc)))
+    snap = await paymentsQuery.get()
+  }
+
+  const [state, card, shopSnap] = await Promise.all([
     readShopState(db, staff.shopId),
     platformCard(),
-    db.collection('payments').where('shopId', '==', staff.shopId).get(),
     db.collection('shops').doc(staff.shopId).get(),
   ])
-  const payments = snap.docs
-    .map((doc) => toRow(doc.id, doc.data()))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  const rows = snap.docs
+    .map((doc) => ({ row: toRow(doc.id, doc.data()), data: doc.data() }))
+    .sort((a, b) => b.row.createdAt.localeCompare(a.row.createdAt))
+  const open = rows.find((r) => r.row.status === 'awaiting')
+  const invoice: Invoice | null = open
+    ? {
+        id: open.row.id,
+        plan: open.row.plan,
+        amount: open.row.amount,
+        card: String(open.data.card || ''),
+        expireAt: String(open.data.expireAt || ''),
+      }
+    : null
+  // Pul kelmagan Hamyon urinishlari tarixga kirmaydi
+  const payments = rows
+    .map((r) => r.row)
+    .filter((p) => p.status !== 'awaiting' && p.status !== 'cancelled')
     .slice(0, 20)
   const shop = shopSnap.data() ?? {}
   return {
@@ -80,6 +113,9 @@ export async function billingStatus(staff: Staff) {
     plan: String(shop.plan || 'month'),
     telegramAddon: shop.telegramAddon === true,
     card,
+    /** Avtomatik to'lov (Hamyon) yoqilganmi — kalitlar Vercel env'da. */
+    hamyon: hamyonKeys() !== null,
+    invoice,
     payments,
   }
 }
@@ -115,6 +151,7 @@ export async function billingSubmit(staff: Staff, body: Record<string, unknown>)
   await ref.set({
     shopId: staff.shopId,
     shopName: state.name,
+    method: 'receipt',
     plan,
     amount,
     receipt: url,

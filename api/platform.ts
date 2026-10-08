@@ -4,6 +4,7 @@ import { requireStaff } from './_lib/admin-auth.js'
 import { PlatformError, shopCreate, slugCheck } from './_lib/platform/shops.js'
 import { DraftError } from './_lib/platform/draft.js'
 import { billingStatus, billingSubmit } from './_lib/platform/billing.js'
+import { hamyonCallback, hamyonCancel, hamyonCreate, hamyonKeys } from './_lib/platform/hamyon.js'
 import {
   paymentApprove, paymentReject, requireSuper, settingsSave, shopDelete, shopLoginLink, shopUpdate, superOverview,
 } from './_lib/platform/super.js'
@@ -26,8 +27,9 @@ type Body = Record<string, unknown>
  *     tg.me             — forma Telegram ichida: ism, tasdiqlangan telefon
  *
  *   Do'kon egasi (Firebase ID token, staff/{uid}):
- *     billing.status    — holat, platforma kartasi, to'lovlar tarixi
+ *     billing.status    — holat, platforma kartasi, ochiq Hamyon to'lovi, tarix
  *     billing.submit    — to'lov cheki yuborish
+ *     billing.hamyon.create / billing.hamyon.cancel — avtomatik to'lov (Hamyon)
  *     owner.overview    — hisobning do'konlari va ikkinchi do'kon arizalari
  *     owner.request.submit / owner.request.cancel — ariza
  *     owner.switch      — panelda boshqa do'konga o'tish
@@ -40,6 +42,9 @@ type Body = Record<string, unknown>
  *     super.bot.setup   — SavdoGO boti webhook'i va tavsifi
  *     super.broadcast.audience / .send / .log — SavdoGO botida ommaviy xabar
  *
+ *   Hamyon API callback'i (forma, imzo bilan):
+ *     POST /api/platform?hamyon=prepare | ?hamyon=complete
+ *
  * Bitta funksiya — Vercel Hobby rejasidagi funksiyalar limiti uchun.
  */
 function clientIp(req: VercelRequest): string {
@@ -48,6 +53,19 @@ function clientIp(req: VercelRequest): string {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Hamyon'dan keladigan to'lov xabari — JSON emas, forma; `action` yo'q
+  if (req.query?.hamyon !== undefined) {
+    if (!requirePost(req, res)) return
+    try {
+      const result = await hamyonCallback(req.body)
+      return res.status(result.status).json(result.body)
+    } catch (error) {
+      // 2xx bo'lmasa Hamyon qayta yuboradi — vaqtinchalik xatoda aynan shu kerak
+      console.error('[hamyon] callback xato:', error)
+      return fail(res, 500, 'Server xatosi')
+    }
+  }
+
   // GET — sozlamalar diagnostikasi (avvalgi /api/ping; funksiyalar soni cheklangan)
   if (req.method === 'GET') return ping(res)
   if (!requirePost(req, res)) return
@@ -84,12 +102,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       case 'billing.status':
-      case 'billing.submit': {
+      case 'billing.submit':
+      case 'billing.hamyon.create':
+      case 'billing.hamyon.cancel': {
         // Muddati tugagan yoki to'lanmagan do'kon egasi ham kira olishi kerak —
         // shuning uchun bu yerda faqat xodimlik tekshiriladi, to'lov emas
         const staff = await requireStaff(req, res, 'admin')
         if (!staff) return
-        const result = action === 'billing.status' ? await billingStatus(staff) : await billingSubmit(staff, body)
+        const result =
+          action === 'billing.status' ? await billingStatus(staff)
+            : action === 'billing.submit' ? await billingSubmit(staff, body)
+              : action === 'billing.hamyon.create' ? await hamyonCreate(staff, body)
+                : await hamyonCancel(staff, body)
         return res.status(200).json(result)
       }
 
@@ -169,5 +193,6 @@ async function ping(res: VercelResponse) {
     firebaseAdmin: adminLoads,
     platformBot: { set: Boolean(platformToken()), chatSet: Boolean(process.env.PLATFORM_CHAT_ID) },
     cronSecret: Boolean(process.env.CRON_SECRET),
+    hamyon: hamyonKeys() !== null,
   })
 }
