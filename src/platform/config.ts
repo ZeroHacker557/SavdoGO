@@ -18,11 +18,13 @@ export * from './plans'
  *
  * `?shop=nomi` har qanday hostda do'konni ochadi — sinov va lokal
  * ishlab chiqish uchun. `?preview` — ro'yxatdan o'tish formasidagi
- * qoralama (localStorage), serversiz.
+ * qoralama (localStorage), serversiz. `?demo` — landingdagi «Demo
+ * do'kon»: hammaga bir xil namuna do'kon, u ham serversiz
+ * (src/shop/demo-shop.ts).
  */
 export type SiteTarget =
   | { kind: 'landing' }
-  | { kind: 'preview' }
+  | { kind: 'preview'; demo: boolean }
   | { kind: 'shop'; slug: string }
   | { kind: 'domain'; host: string }
 
@@ -30,7 +32,8 @@ const PLATFORM_HOSTS = new Set([PLATFORM.rootDomain, `www.${PLATFORM.rootDomain}
 
 export function resolveSiteTarget(location: { hostname: string; search: string }): SiteTarget {
   const params = new URLSearchParams(location.search)
-  if (params.has('preview')) return { kind: 'preview' }
+  if (params.has('demo')) return { kind: 'preview', demo: true }
+  if (params.has('preview')) return { kind: 'preview', demo: false }
   const shopParam = normalizeSlug(params.get('shop') || '')
   if (shopParam) return { kind: 'shop', slug: shopParam }
 
@@ -46,6 +49,9 @@ export function resolveSiteTarget(location: { hostname: string; search: string }
   }
   return { kind: 'domain', host }
 }
+
+/** Landingdagi «Demo do'kon» tugmasi — platforma domenining o'zida ochiladi. */
+export const DEMO_SHOP_HREF = '/?demo'
 
 /** Biznes nomidan subdomen taklifi: «Kafe Nur» → «kafe-nur». */
 export function slugFromName(name: string): string {

@@ -4,12 +4,14 @@ import { Logo } from './Logo'
 import { useScrolled } from '../hooks'
 import { goTo } from '../router'
 import { useOwnerShop, type OwnerShop } from '../owner'
+import { DEMO_SHOP_HREF } from '../../platform/config'
 import { initials } from '../../platform/shop'
 
 const LINKS = [
   { href: '#features', label: 'Imkoniyatlar' },
   { href: '#how', label: 'Qanday ishlaydi' },
   { href: '#pricing', label: 'Narxlar' },
+  { href: DEMO_SHOP_HREF, label: 'Demo do‘kon' },
   { href: '#faq', label: 'Savollar' },
   { href: '/qollanma', label: 'Qo‘llanma' },
 ]

@@ -164,6 +164,7 @@ yoki `npm run dev`. `/api` funksiyalari ham shu serverda ishlaydi
 | `http://localhost:5173/?shop=nomi` | do'kon sayti (lokal subdomen o'rniga) |
 | `http://nomi.localhost:5173` | do'kon sayti — subdomen bilan |
 | `http://localhost:5173/?preview` | formadagi qoralama — bazasiz |
+| `http://localhost:5173/?demo` | landingdagi «Demo do'kon» — hammaga bir xil namuna, bazasiz |
 | `http://localhost:5173/admin` | admin panel |
 | `http://localhost:5173/super` | platforma paneli |
 

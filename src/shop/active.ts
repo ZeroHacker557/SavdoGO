@@ -12,11 +12,13 @@ import { canTakeOrders, type ShopConfig } from '../platform/shop'
  */
 let current: ShopConfig | null = null
 let preview = false
+let demo = false
 const listeners = new Set<(shop: ShopConfig) => void>()
 
-export function setActiveShop(shop: ShopConfig, options: { preview?: boolean } = {}) {
+export function setActiveShop(shop: ShopConfig, options: { preview?: boolean; demo?: boolean } = {}) {
   current = shop
   if (options.preview !== undefined) preview = options.preview
+  if (options.demo !== undefined) demo = options.demo
   applyBrand(shop)
   listeners.forEach((listener) => listener(shop))
 }
@@ -36,6 +38,11 @@ export function activeShopId(): string {
  */
 export function isPreview(): boolean {
   return preview
+}
+
+/** Landingdagi «Demo do'kon» (`/?demo`) — oldindan ko'rishning bir turi. */
+export function isDemo(): boolean {
+  return preview && demo
 }
 
 /** Mijoz hozir buyurtma bera oladimi (to'langan, muddati o'tmagan, qoralama emas). */
