@@ -1,6 +1,6 @@
 import { ArrowRight, Mail, Phone, Plus, Send } from 'lucide-react'
 import type { CSSProperties } from 'react'
-import { PLANS, PLATFORM, TRIAL_DAYS, formatSum, platformBotLink } from '../../platform/config'
+import { DEMO_SHOP_HREF, PLANS, PLATFORM, TRIAL_DAYS, formatSum, platformBotLink } from '../../platform/config'
 import { Logo } from '../components/Logo'
 import { goTo } from '../router'
 
@@ -74,6 +74,9 @@ export function Final() {
               yoki <a href={platformBotLink()!} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline', fontWeight: 700 }}>Telegram botimizda oching</a> — parolsiz, telefoningizdan
             </p>
           )}
+          <p style={{ marginTop: 10 }}>
+            Avval ko‘rib olmoqchimisiz? <a href={DEMO_SHOP_HREF} style={{ textDecoration: 'underline', fontWeight: 700 }}>Demo do‘konni oching</a>
+          </p>
         </div>
       </div>
     </section>

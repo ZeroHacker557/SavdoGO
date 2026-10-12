@@ -10,6 +10,7 @@ import { applyShopTheme, type ShopTheme } from './platform/palette'
 import { draftToConfig, emptyDraft, initials, loadDraft, readShopConfig, type ShopConfig } from './platform/shop'
 import type { SiteTarget } from './platform/config'
 import { setActiveShop } from './shop/active'
+import { demoShopConfig } from './shop/demo-shop'
 import { ShopProvider } from './shop/ShopProvider'
 import { ShopUnavailable, type UnavailableReason } from './shop/ShopUnavailable'
 import { applySafeArea, waitForTelegram } from './utils/telegram'
@@ -58,6 +59,7 @@ async function shopIdByDomain(host: string): Promise<string | null> {
 
 async function loadShop(target: SiteTarget): Promise<Loaded> {
   if (target.kind === 'preview') {
+    if (target.demo) return { ok: true, shop: demoShopConfig() }
     // Formadagi qoralama — bazasiz; qoralama bo'lmasa bo'sh namuna
     const draft = loadDraft() ?? emptyDraft()
     return { ok: true, shop: draftToConfig(draft) }
@@ -117,7 +119,7 @@ export async function mountStorefront(root: Root, target: SiteTarget) {
     return
   }
 
-  setActiveShop(loaded.shop, { preview: target.kind === 'preview' })
+  setActiveShop(loaded.shop, { preview: target.kind === 'preview', demo: target.kind === 'preview' && target.demo })
   applyShop(loaded.shop)
 
   root.render(

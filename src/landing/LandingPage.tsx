@@ -6,6 +6,7 @@ import { Marquee } from './sections/Marquee'
 import { Steps } from './sections/Steps'
 import { Features } from './sections/Features'
 import { Studio } from './sections/Studio'
+import { Compare } from './sections/Compare'
 import { Numbers, Pricing } from './sections/Pricing'
 import { Faq, Final, Footer } from './sections/Closing'
 import { useLandingReveal } from './hooks'
@@ -39,6 +40,7 @@ export function LandingPage() {
         <Features />
         <Studio />
         <Numbers />
+        <Compare />
         <Pricing />
         <Faq />
         <Final />

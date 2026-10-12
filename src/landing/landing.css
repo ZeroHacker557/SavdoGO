@@ -348,6 +348,12 @@ a { color: inherit; text-decoration: none; }
 .lp-lead b { color: var(--lp-ink); }
 
 .lp-hero__ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+/* Kompyuterda Telegram — faqat belgi (uch tugma bir qatorga sig'sin), telefonda — matni bilan */
+.lp-hero__tg { width: 54px; padding: 0; }
+.lp-hero__tg-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (max-width: 1180px) and (min-width: 901px) {
+  .lp-hero__ctas .lp-btn:not(.lp-hero__tg) { padding: 0 20px; }
+}
 .lp-hero__trial {
   display: flex;
   flex-wrap: wrap;
@@ -700,6 +706,10 @@ a { color: inherit; text-decoration: none; }
   .lp-lead { margin-top: 16px; font-size: 16px; }
   .lp-hero__ctas { margin-top: 24px; }
   .lp-hero__ctas .lp-btn { flex: 1 1 100%; max-width: 360px; }
+  /* Demo va Telegram — asosiy tugma ostida yonma-yon */
+  .lp-hero__ctas .lp-btn--ghost { flex: 1 1 0; max-width: 174px; min-width: 0; padding: 0 12px; gap: 8px; font-size: 15px; }
+  .lp-hero__tg { width: auto; }
+  .lp-hero__tg-text { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
   .lp-stage__phone, .lp-hero__stage:hover .lp-stage__phone { transform: none; scale: 0.92; }
   .asm-token { font-size: 12px; scale: 0.88; }
   .asm-token--a, .asm-token--c { left: 0; }
@@ -716,6 +726,8 @@ a { color: inherit; text-decoration: none; }
 }
 @media (max-width: 380px) {
   .lp-eyebrow { font-size: 12.5px; }
+  .lp-hero__ctas { gap: 10px; }
+  .lp-hero__ctas .lp-btn--ghost { padding: 0 6px; gap: 6px; font-size: 13.5px; }
   .lp-switch button { width: 34px; height: 34px; }
   .asm-token--c, .asm-token--d { display: none; }
 }
@@ -1259,6 +1271,135 @@ html.lp-reveal [data-reveal].is-in { opacity: 1; transform: none; }
   .lp-number { padding: 20px 10px; border-radius: 18px; }
   .lp-number b { font-size: clamp(26px, 8vw, 34px); }
   .lp-number span { margin-top: 8px; font-size: 13px; }
+}
+
+/* ── Taqqoslash ───────────────────────────────────────────── */
+
+.lp-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.lp-cmp {
+  --cmp-yes: #16a34a;
+  --cmp-yes-soft: #dcfce7;
+  --cmp-part: #b45309;
+  --cmp-part-soft: #fef3c7;
+  --cmp-no: #e5484d;
+  --cmp-no-soft: #fee2e2;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 12px;
+  border-radius: var(--lp-r-lg);
+  background: var(--lp-surface);
+  box-shadow: inset 0 0 0 1px var(--lp-line), var(--lp-shadow-md);
+}
+.lp-cmp__row {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.95fr) 1fr 1fr 1.15fr;
+}
+.lp-cmp__label,
+.lp-cmp__cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--lp-line);
+  font-size: 14.5px;
+  line-height: 1.4;
+}
+.lp-cmp__label { font-weight: 800; color: var(--lp-ink); }
+.lp-cmp__cell { color: var(--lp-ink-2); font-weight: 600; }
+.lp-cmp__row:last-child > * { border-bottom: 0; }
+.lp-cmp__row:not(.lp-cmp__row--head):hover > :not(.lp-cmp__cell--savdogo) { background: var(--lp-surface-2); }
+
+.lp-cmp__row--head .lp-cmp__cell { flex-wrap: wrap; align-items: center; padding-top: 20px; padding-bottom: 20px; color: var(--lp-ink); }
+.lp-cmp__row--head b { font-family: var(--lp-display); font-size: 14px; font-weight: 600; line-height: 1.35; }
+.lp-cmp__col-icon {
+  display: grid;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--lp-surface-2);
+  color: var(--lp-ink-2);
+}
+.lp-cmp__badge {
+  margin-left: auto;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--lp-lime);
+  color: var(--lp-lime-ink);
+  font-size: 11.5px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+/* SavdoGO ustuni — bitta to'q ustun bo'lib ko'rinadi */
+.lp-cmp__cell--savdogo {
+  background: var(--lp-dark);
+  color: #fff;
+  border-bottom-color: rgb(255 255 255 / 0.08);
+}
+.lp-cmp__row--head .lp-cmp__cell--savdogo { border-radius: 22px 22px 0 0; color: #fff; }
+.lp-cmp__row--head .lp-cmp__cell--savdogo b { font-size: 17px; font-weight: 700; }
+.lp-cmp__row--head .lp-cmp__cell--savdogo .lp-cmp__col-icon { background: var(--lp-grad); color: #fff; }
+.lp-cmp__row:last-child .lp-cmp__cell--savdogo { border-radius: 0 0 22px 22px; }
+
+.lp-cmp__mark {
+  display: grid;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 50%;
+}
+.lp-cmp__mark--yes { background: var(--cmp-yes-soft); color: var(--cmp-yes); }
+.lp-cmp__mark--part { background: var(--cmp-part-soft); color: var(--cmp-part); }
+.lp-cmp__mark--no { background: var(--cmp-no-soft); color: var(--cmp-no); }
+.lp-cmp__cell--savdogo .lp-cmp__mark--yes { background: var(--lp-lime); color: var(--lp-lime-ink); }
+
+.lp-cmp__tag { display: none; }
+
+.lp-cmp__ctas { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 36px; }
+
+/* Telefon: har qator — alohida karta */
+@media (max-width: 760px) {
+  .lp-cmp { display: grid; gap: 12px; padding: 0; background: none; box-shadow: none; }
+  .lp-cmp__row--head { display: none; }
+  .lp-cmp__row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 14px;
+    border-radius: 22px;
+    background: var(--lp-surface);
+    box-shadow: inset 0 0 0 1px var(--lp-line);
+  }
+  .lp-cmp__row > *,
+  .lp-cmp__row:last-child > * { border-bottom: 0; }
+  .lp-cmp__row:not(.lp-cmp__row--head):hover > :not(.lp-cmp__cell--savdogo) { background: none; }
+  .lp-cmp__label { padding: 2px 4px 6px; font-size: 15.5px; }
+  .lp-cmp__cell { padding: 9px 10px; border-radius: 14px; font-size: 14px; }
+  .lp-cmp__row:last-child .lp-cmp__cell--savdogo { border-radius: 14px; }
+  .lp-cmp__tag {
+    display: block;
+    flex: none;
+    width: 72px;
+    color: var(--lp-faint);
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .lp-cmp__cell--savdogo .lp-cmp__tag { color: var(--lp-lime); }
+  .lp-cmp__ctas { margin-top: 24px; }
+  .lp-cmp__ctas .lp-btn { flex: 1 1 100%; max-width: 360px; }
 }
 
 /* ── Narxlar ──────────────────────────────────────────────── */

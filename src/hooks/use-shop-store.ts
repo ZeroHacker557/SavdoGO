@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { shopKey } from '../shop/storage'
-import { acceptsOrders, activeShop, isPreview } from '../shop/active'
+import { acceptsOrders, activeShop, isDemo, isPreview } from '../shop/active'
 import { subscribeToCategories, subscribeToProducts, subscribeToPromotions, subscribeToSections, subscribeToUserOrders, subscribeToUserProfile, subscribeToUserNotifications, markNotificationsAsRead, markOrderNotificationsAsRead, updateUserProfile } from '../lib/firebase'
 import { ensureSignedIn, onAuthChanged, auth } from '../lib/auth'
 import { apiPost } from '../lib/api'
@@ -849,7 +849,7 @@ export function useShopStore() {
 
     // Qoralama yoki to'lanmagan do'kon — buyurtma serverga yuborilmaydi
     if (!acceptsOrders()) {
-      notify(t(isPreview() ? 'shop.previewNoOrders' : 'shop.notAccepting'))
+      notify(t(isDemo() ? 'shop.showcaseNoOrders' : isPreview() ? 'shop.previewNoOrders' : 'shop.notAccepting'))
       return false
     }
 
